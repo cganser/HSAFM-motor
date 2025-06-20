@@ -97,6 +97,12 @@ class MainWindow(QtWidgets.QMainWindow):
         #self.DAHat.hat.dio_config_write_bit(0,DIOConfigItem.DIRECTION,0)
         self.DAHat.hat.dio_output_write_bit(0,0)
 
+        self.DAHat.hat.a_out_write(0,0.0)
+        self.DAHat.hat.a_out_write(1,0.0)
+
+        #for i in range(0,200):
+        #    self.DoForceCurve()
+
         self.ADUpdateTimeMS = 2 #how many milliseconds between data acquisition
         self.graphUpdateTimeMS = 50 #how many millisecond between updating the bar graphs
         self.currGraphCount = 0
@@ -1168,6 +1174,21 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.accelFreq >= self.pulseFreq:
             self.AccelTimer.stop()
 
+
+
+    def DoForceCurve(self):
+        N = 500
+        V = 5.0
+        dV = V/N
+
+        for i in range(0,N):
+            self.DAHat.hat.a_out_write(0,i*dV)
+
+        for i in range(0,N):
+            self.DAHat.hat.a_out_write(0,(N-i)*dV)
+
+
+
     def float_to_bytes(self,value):
         return struct.pack('d', value)
 
@@ -1264,6 +1285,8 @@ class MainWindow(QtWidgets.QMainWindow):
         except:
             print("Settings file 'settings.dat' not found; creating one for next time.")
             self.SaveSettings()
+
+
 
 
 
