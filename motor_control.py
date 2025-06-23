@@ -17,6 +17,7 @@ import os
 import time
 import struct
 import matplotlib
+import array
 import gc
 matplotlib.use('Qt5Agg')
 
@@ -100,9 +101,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.DAHat.hat.a_out_write(0,0.0)
         self.DAHat.hat.a_out_write(1,0.0)
 
-        #for i in range(0,200):
-        #    self.DoForceCurve()
-
         self.ADUpdateTimeMS = 2 #how many milliseconds between data acquisition
         self.graphUpdateTimeMS = 50 #how many millisecond between updating the bar graphs
         self.currGraphCount = 0
@@ -183,9 +181,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.controlTab = QtWidgets.QWidget()
         self.settingTab = QtWidgets.QWidget()
         self.advancedTab = QtWidgets.QWidget()
+        self.forceTab = QtWidgets.QWidget()
         self.tabs.addTab(self.controlTab, "Control")
         self.tabs.addTab(self.settingTab, "Settings")
         self.tabs.addTab(self.advancedTab, "Advanced")
+        self.tabs.addTab(self.forceTab, "Force Curve")
 
         self.layout = QtWidgets.QVBoxLayout(self.centralFrame)
 
@@ -194,6 +194,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ControlTab()
         self.SettingsTab()
         self.AdvancedTab()
+        self.ForceTab()
 
     def ControlTab(self):
         layout = QtWidgets.QGridLayout(self.controlTab)
@@ -642,8 +643,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.SaveSettings()
 
     def AdvancedTab(self):
-
-
         layout = QtWidgets.QGridLayout(self.advancedTab)
 
         channelLayout = QtWidgets.QGridLayout()
@@ -860,6 +859,110 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def createMenuBar(self):
         self.settingsMenuEntry = QtWidgets.QAction("&Settings", self)
+
+
+    def ForceTab(self):
+        layout = QtWidgets.QGridLayout(self.forceTab)
+
+        self.forceDataPoints = 500
+        self.extensionVoltage = 5.0
+        self.contForceFlag  = False
+
+        self.ContForceTimer = QTimer()
+        self.ContForceTimer.timeout.connect(self.DoForceCurve)
+        #self.ContForceTimer.start(10)
+
+
+
+        self.DoForceButton = QtWidgets.QPushButton("Do Force Curve", clicked=self.DoForceCurveButtonFunc)
+        self.DoForceButton.setMinimumHeight(40)
+
+        self.DoContForceButton = QtWidgets.QPushButton("Do Continuous Force Curves", clicked=self.DoContForceCurve)
+        self.DoContForceButton.setMinimumHeight(40)
+        self.DoContForceButton.setMinimumWidth(220)
+
+        self.forceCanvas = FigureCanvas(Figure(figsize=(2,4)))
+        self.forceAxes = self.forceCanvas.figure.subplots()
+        self.forceCanvas.figure.set_layout_engine('tight')
+        self.forceAxes.set_xlabel("z-piezo / V")
+        self.forceAxes.set_ylabel("deflection / V")
+        self.forceLine, = self.forceAxes.plot([0,1],[0,0],'r')
+
+        self.forcePointsLabel = QtWidgets.QLabel("Data points:")
+        self.forcePointsValue = QtWidgets.QSpinBox()
+        self.forcePointsValue.setMaximum(1000000)
+        self.forcePointsValue.setValue(self.forceDataPoints)
+        self.forcePointsValue.valueChanged.connect(self.DoForceSettings)
+
+        self.forceMaxDistLabel = QtWidgets.QLabel("Max. extension:")
+        self.forceMaxDistValue = QtWidgets.QDoubleSpinBox()
+        self.forceMaxDistValue.setSuffix(" V")
+        self.forceMaxDistValue.setMaximum(5.0)
+        self.forceMaxDistValue.setValue(self.extensionVoltage)
+        self.forceMaxDistValue.valueChanged.connect(self.DoForceSettings)
+
+
+
+        layout.addWidget(self.DoForceButton,6,5)
+        layout.addWidget(self.DoContForceButton,6,3,1,2)
+
+        layout.addWidget(self.forceCanvas,0,0,7,3)
+
+        layout.addWidget(self.forcePointsLabel,1,3)
+        layout.addWidget(self.forcePointsValue,1,4)
+
+        layout.addWidget(self.forceMaxDistLabel,2,3)
+        layout.addWidget(self.forceMaxDistValue,2,4)
+
+    def DoForceSettings(self):
+        self.forceDataPoints = self.forcePointsValue.value()
+        self.extensionVoltage = self.forceMaxDistValue.value()
+
+    def DoForceCurveButtonFunc(self):
+        self.ReadADTimer.stop()
+        self.DoForceCurve()
+        self.ReadADTimer.start(self.ADUpdateTimeMS)
+
+
+    def DoForceCurve(self):
+
+        N = int(self.forceDataPoints/2)
+        V = self.extensionVoltage
+        self.ForceDeflData = array.array('f',[])
+        #self.ForceDistData = array.array('f',[])
+        self.ForceDistData = array.array('f',range(0,2*N))
+
+        #self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options)
+
+        dV = V/N
+
+        for i in range(0,N):
+            self.DAHat.hat.a_out_write(0,i*dV)
+            self.ForceDeflData.append(self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options))
+            #self.ForceDistData.append(self.ADHat.hat.a_in_read(4,self.ADHat.options))
+
+        for i in range(0,N):
+            self.DAHat.hat.a_out_write(0,(N-i)*dV)
+            self.ForceDeflData.append(self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options))
+            #self.ForceDistData.append(self.ADHat.hat.a_in_read(4,self.ADHat.options))
+
+        self.forceAxes.cla()
+        self.forceLine, = self.forceAxes.plot(self.ForceDistData,self.ForceDeflData,'r')
+        self.forceCanvas.draw()
+
+    def DoContForceCurve(self):
+        self.DoForceButton.setEnabled(0)
+        self.DoContForceButton.setText("Stop!")
+        self.DoContForceButton.clicked.connect(self.StopContForceCurve)
+
+        self.ContForceTimer.start()
+
+    def StopContForceCurve(self):
+        #self.contForceFlag = False
+        self.DoForceButton.setEnabled(1)
+        self.DoContForceButton.setText("Do Continuous Force Curves")
+        self.DoContForceButton.clicked.connect(self.DoContForceCurve)
+        self.ContForceTimer.stop()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         self.MotorStop()
@@ -1175,17 +1278,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.AccelTimer.stop()
 
 
-
-    def DoForceCurve(self):
-        N = 500
-        V = 5.0
-        dV = V/N
-
-        for i in range(0,N):
-            self.DAHat.hat.a_out_write(0,i*dV)
-
-        for i in range(0,N):
-            self.DAHat.hat.a_out_write(0,(N-i)*dV)
 
 
 
