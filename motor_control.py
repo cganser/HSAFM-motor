@@ -20,6 +20,7 @@ import struct
 import matplotlib
 import array
 import gc
+import math
 matplotlib.use('Qt5Agg')
 
 from daqhats import mcc118, mcc152, OptionFlags, HatIDs, HatError, hat_list, DIOConfigItem
@@ -99,7 +100,9 @@ class MainWindow(QtWidgets.QMainWindow):
         #self.DAHat.hat.dio_config_write_bit(0,DIOConfigItem.DIRECTION,0)
         self.DAHat.hat.dio_output_write_bit(0,0)
 
-        self.DAHat.hat.a_out_write(0,0.0)
+        self.forceOffset = 2.5
+
+        self.DAHat.hat.a_out_write(0,self.forceOffset)
         self.DAHat.hat.a_out_write(1,0.0)
 
         self.ADUpdateTimeMS = 2 #how many milliseconds between data acquisition
@@ -866,8 +869,11 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QGridLayout(self.forceTab)
 
         self.forceDataPoints = 500
-        self.extensionVoltage = 5.0
+        self.extensionVoltage = -1.0
+        self.retractionVoltage = 2.5
         self.contForceFlag  = False
+        self.piezoConst = 18.5
+        self.gain = 5
 
         self.ContForceTimer = QTimer()
         self.ContForceTimer.timeout.connect(self.DoForceCurve)
@@ -885,7 +891,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.forceCanvas = FigureCanvas(Figure(figsize=(2,4)))
         self.forceAxes = self.forceCanvas.figure.subplots()
         self.forceCanvas.figure.set_layout_engine('tight')
-        self.forceAxes.set_xlabel("z-piezo / V")
+        self.forceAxes.set_xlabel("z-piezo / nm")
         self.forceAxes.set_ylabel("deflection / V")
         self.forceLine, = self.forceAxes.plot([0,1],[0,0],'r')
 
@@ -898,9 +904,36 @@ class MainWindow(QtWidgets.QMainWindow):
         self.forceMaxDistLabel = QtWidgets.QLabel("Max. extension:")
         self.forceMaxDistValue = QtWidgets.QDoubleSpinBox()
         self.forceMaxDistValue.setSuffix(" V")
-        self.forceMaxDistValue.setMaximum(5.0)
+        self.forceMaxDistValue.setMaximum(2.5)
+        self.forceMaxDistValue.setMinimum(-2.5)
+        self.forceMaxDistValue.setSingleStep(0.1)
         self.forceMaxDistValue.setValue(self.extensionVoltage)
         self.forceMaxDistValue.valueChanged.connect(self.DoForceSettings)
+
+        self.forceMinDistLabel = QtWidgets.QLabel("Max. retraction:")
+        self.forceMinDistValue = QtWidgets.QDoubleSpinBox()
+        self.forceMinDistValue.setSuffix(" V")
+        self.forceMinDistValue.setMaximum(2.5)
+        self.forceMinDistValue.setMinimum(-2.5)
+        self.forceMinDistValue.setSingleStep(0.1)
+        self.forceMinDistValue.setValue(self.retractionVoltage)
+        self.forceMinDistValue.valueChanged.connect(self.DoForceSettings)
+
+
+        self.piezoConstLabel = QtWidgets.QLabel("Piezo const.:")
+        self.piezoConstValue = QtWidgets.QDoubleSpinBox()
+        self.piezoConstValue.setSuffix(" nm/V")
+        self.piezoConstValue.setMaximum(100)
+        self.piezoConstValue.setSingleStep(0.1)
+        self.piezoConstValue.setValue(self.piezoConst)
+        self.piezoConstValue.valueChanged.connect(self.DoForceSettings)
+
+        self.gainLabel = QtWidgets.QLabel("Gain:")
+        self.gainValue = QtWidgets.QSpinBox()
+        self.gainValue.setMaximum(10)
+        self.gainValue.setSingleStep(1)
+        self.gainValue.setValue(self.gain)
+        self.gainValue.valueChanged.connect(self.DoForceSettings)
 
 
 
@@ -909,15 +942,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
         layout.addWidget(self.forceCanvas,0,0,7,3)
 
-        layout.addWidget(self.forcePointsLabel,1,3)
-        layout.addWidget(self.forcePointsValue,1,4)
+        layout.addWidget(self.piezoConstLabel,0,3)
+        layout.addWidget(self.piezoConstValue,0,4)
 
-        layout.addWidget(self.forceMaxDistLabel,2,3)
-        layout.addWidget(self.forceMaxDistValue,2,4)
+        layout.addWidget(self.gainLabel,1,3)
+        layout.addWidget(self.gainValue,1,4)
+
+        layout.addWidget(self.forcePointsLabel,2,3)
+        layout.addWidget(self.forcePointsValue,2,4)
+
+
+        layout.addWidget(self.forceMinDistLabel,3,3)
+        layout.addWidget(self.forceMinDistValue,3,4)
+
+        layout.addWidget(self.forceMaxDistLabel,4,3)
+        layout.addWidget(self.forceMaxDistValue,4,4)
 
     def DoForceSettings(self):
         self.forceDataPoints = self.forcePointsValue.value()
         self.extensionVoltage = self.forceMaxDistValue.value()
+        self.retractionVoltage = self.forceMinDistValue.value()
+        self.piezoConst = self.piezoConstValue.value()
+        self.gain = self.gainValue.value()
 
     def DoForceCurveButtonFunc(self):
         self.ReadADTimer.stop()
@@ -928,27 +974,53 @@ class MainWindow(QtWidgets.QMainWindow):
     def DoForceCurve(self):
 
         N = int(self.forceDataPoints/2)
-        V = self.extensionVoltage
-        self.ForceDeflData = array.array('f',[])
-        #self.ForceDistData = array.array('f',[])
-        self.ForceDistData = array.array('f',range(0,2*N))
+        V = self.retractionVoltage - self.extensionVoltage
+        self.ForceDeflDataApp = array.array('f',[])
+        self.ForceDistDataApp = array.array('f',[])
+        self.ForceDeflDataRet = array.array('f',[])
+        self.ForceDistDataRet = array.array('f',[])
+
+        #self.ForceDistMApp = array.array('f',[])
+        #self.ForceDistMRet = array.array('f',[])
+        #self.ForceDistData = array.array('f',range(0,2*N))
 
         #self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options)
 
         dV = V/N
+        retractPnts = 100
+
+        for i in range(0,retractPnts):
+            #voltage = self.forceOffset + i*self.retractionVoltage/retractPnts
+            voltage = self.forceOffset + self.retractionVoltage*(1-math.cos(i*math.pi/retractPnts))/2
+            self.DAHat.hat.a_out_write(0,voltage)
+
+        F0 = self.forceOffset + self.retractionVoltage
 
         for i in range(0,N):
-            self.DAHat.hat.a_out_write(0,i*dV)
-            self.ForceDeflData.append(self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options))
-            #self.ForceDistData.append(self.ADHat.hat.a_in_read(4,self.ADHat.options))
+            self.DAHat.hat.a_out_write(0,F0 - i*dV)
+            self.ForceDeflDataApp.append(self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options))
+            self.ForceDistDataApp.append(self.ADHat.hat.a_in_read(4,self.ADHat.options))
 
         for i in range(0,N):
-            self.DAHat.hat.a_out_write(0,(N-i)*dV)
-            self.ForceDeflData.append(self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options))
-            #self.ForceDistData.append(self.ADHat.hat.a_in_read(4,self.ADHat.options))
+            self.DAHat.hat.a_out_write(0,F0 - (N-i)*dV)
+            self.ForceDeflDataRet.append(self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options))
+            self.ForceDistDataRet.append(self.ADHat.hat.a_in_read(4,self.ADHat.options))
+
+        for i in range(0,retractPnts):
+            voltage = self.forceOffset + self.retractionVoltage*(1+math.cos(i*math.pi/retractPnts))/2
+            self.DAHat.hat.a_out_write(0,voltage)
+
+        dummy = [(x-self.forceOffset)*self.piezoConst*self.gain for x in self.ForceDistDataApp]
+        self.ForceDistMApp = array.array('f',dummy)
+
+        dummy2 = [(x-self.forceOffset)*self.piezoConst*self.gain for x in self.ForceDistDataRet]
+        self.ForceDistMRet = array.array('f',dummy2)
+
+        #self.forceDistMRet = self.ForceDeflDataApp*self.piezoConst*self.gain
 
         self.forceAxes.cla()
-        self.forceLine, = self.forceAxes.plot(self.ForceDistData,self.ForceDeflData,'r')
+        self.forceLine, = self.forceAxes.plot(self.ForceDistMApp,self.ForceDeflDataApp,'r')
+        self.forceLine, = self.forceAxes.plot(self.ForceDistMRet,self.ForceDeflDataRet,'b')
         self.forceCanvas.draw()
 
     def DoContForceCurve(self):
