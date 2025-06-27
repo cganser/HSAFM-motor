@@ -21,6 +21,7 @@ import matplotlib
 import array
 import gc
 import math
+import numpy as np
 matplotlib.use('Qt5Agg')
 
 from daqhats import mcc118, mcc152, OptionFlags, HatIDs, HatError, hat_list, DIOConfigItem
@@ -164,8 +165,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fastTravel = 0
 
         self.LoadSettings()
-        #After the latest OS update (April 2025), the value for "chip" has to be 0, otherwise it will not work.
-        #The manual on the homepage originally stated that for RPi5, "chip" should be 2.
+        #After an OS update (April 2025), the value for "chip" has to be 0, otherwise it will not work.
+        #The manual on the homepage for the rpi_hardware_pwm package originally stated that for RPi5, "chip" should be 2.
         self.chip = 0
         self.pwm_ccw = HardwarePWM(pwm_channel=self.approachChn, hz=self.slowMoveFreq, chip=self.chip)
         self.pwm_cw = HardwarePWM(pwm_channel=self.retractChn, hz=self.slowMoveFreq, chip=self.chip)
@@ -270,19 +271,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.BGPatch = self.axes.add_patch(matplotlib.patches.Rectangle((left,bottom),width,height,color="#DDDDDD"))
         self.BGPatch.set_animated(False)
 
-        #separator_step = 3/4
-        #self.R1 = self.axes.add_patch(matplotlib.patches.Rectangle((left,2.64),width,0.02,color ="#000000"))
-        #self.R1.set_animated(False)
-        #self.R2 = self.axes.add_patch(matplotlib.patches.Rectangle((left,2.19),width,0.02,color ="#000000"))
-        #self.R2.set_animated(False)
-        #self.R3 = self.axes.add_patch(matplotlib.patches.Rectangle((left,3.08),width,0.02,color ="#000000"))
-        #self.R3.set_animated(False)
-        #self.R4 = self.axes.add_patch(matplotlib.patches.Rectangle((left+width/2,bottom),0.01,height,color ="#000000"))
-        #self.R4.set_animated(False)
-
-
-
-
         #Center Line
         self.axes.plot([0,0],[-0.5,0.5],color='#000000',ls=':',animated = False)
         self.axes.plot([0,0],[1.5,2.5],color='#000000',ls=':',animated = False)
@@ -364,22 +352,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.AutoApproachButton = QtWidgets.QPushButton("Auto\n Approach", clicked=self.AutoApproachButtonFunction)
 
         self.MotorPosLabel = QtWidgets.QLabel("Position:")
-        #self.MotorPosValue = QtWidgets.QSpinBox()
         self.MotorPosValue = QtWidgets.QLineEdit()
         self.MotorPosValue.setReadOnly(1)
         self.MotorPosValue.setText("0")
-        #self.MotorPosValue.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
-        #self.MotorPosValue.setRange(-10000000,10000000)
 
 
         self.MotorCurrSpeedLabel = QtWidgets.QLabel("Curr. Speed:")
-        #self.MotorCurrSpeedValue = QtWidgets.QSpinBox()
         self.MotorCurrSpeedValue = QtWidgets.QLineEdit()
         self.MotorCurrSpeedValue.setText("0")
-        #self.MotorCurrSpeedValue.setRange(0,10000000)
-        #self.MotorCurrSpeedValue.setValue(0)
         self.MotorCurrSpeedValue.setReadOnly(1)
-        #self.MotorCurrSpeedValue.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
 
         self.MotorFasterButton = QtWidgets.QPushButton("Faster!", clicked=self.FasterButtonFunction)
         self.MotorSlowerButton = QtWidgets.QPushButton("Slower!", clicked=self.SlowerButtonFunction)
@@ -438,7 +419,6 @@ class MainWindow(QtWidgets.QMainWindow):
         #
         #Motor Control
 
-        #layout.addWidget(self.MeterBox,1,1)
         layout.addWidget(self.MotorBox,4,0,2,7)
 
     def SlowLimitCheckFunction(self):
@@ -472,10 +452,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
         #Speed Settings
-        #self.fastMoveFreq
-        #self.slowMoveFreq
-        #self.autoApproachFreq
-        #self.acceleration
         self.AutoApproachSpeedLabel = QtWidgets.QLabel("Auto")
         self.AutoApproachSpeedBox = QtWidgets.QSpinBox()
         self.AutoApproachSpeedBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
@@ -538,9 +514,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.speedBox.setLayout(speedLayout)
 
         #Auto Approach Conditions
-        #self.defLimit
-        #self.zpiLimit
-        #self.ampRatio
         self.AmplitudeConditionLabel = QtWidgets.QLabel("Amplitude")
         self.AmplitudeConditionBox = QtWidgets.QSpinBox()
         self.AmplitudeConditionBox.setSuffix("%")
@@ -877,9 +850,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.ContForceTimer = QTimer()
         self.ContForceTimer.timeout.connect(self.DoForceCurve)
-        #self.ContForceTimer.start(10)
-
-
 
         self.DoForceButton = QtWidgets.QPushButton("Do Force Curve", clicked=self.DoForceCurveButtonFunc)
         self.DoForceButton.setMinimumHeight(40)
@@ -887,6 +857,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.DoContForceButton = QtWidgets.QPushButton("Do Continuous Force Curves", clicked=self.DoContForceCurve)
         self.DoContForceButton.setMinimumHeight(40)
         self.DoContForceButton.setMinimumWidth(220)
+
+        self.AutoInvOLSButton = QtWidgets.QPushButton("Auto InvOLS", clicked=self.AutoInvOLSFunc)
+        self.AutoInvOLSButton.setMinimumHeight(40)
+
 
         self.forceCanvas = FigureCanvas(Figure(figsize=(2,4)))
         self.forceAxes = self.forceCanvas.figure.subplots()
@@ -937,8 +911,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-        layout.addWidget(self.DoForceButton,6,5)
-        layout.addWidget(self.DoContForceButton,6,3,1,2)
 
         layout.addWidget(self.forceCanvas,0,0,7,3)
 
@@ -957,6 +929,56 @@ class MainWindow(QtWidgets.QMainWindow):
 
         layout.addWidget(self.forceMaxDistLabel,4,3)
         layout.addWidget(self.forceMaxDistValue,4,4)
+
+        layout.addWidget(self.AutoInvOLSButton,5,5)
+
+        layout.addWidget(self.DoForceButton,6,5)
+        layout.addWidget(self.DoContForceButton,6,3,1,2)
+
+
+    def DoZeroEstimate(self):
+        N = len(self.ForceDistMRet)
+        x1 = np.array(self.ForceDistMRet[int(0.9*N):N-1])
+        y1 = np.array(self.ForceDeflDataRet[int(0.9*N):N-1])
+        x2 = np.array(self.ForceDistMRet[0:int(0.1*N)])
+        y2 = np.array(self.ForceDeflDataRet[0:int(0.1*N)])
+
+        C1,_ = self.DoPolyFit(x1,y1,1)
+        C2,_ = self.DoPolyFit(x2,y2,1)
+
+        self.x0 = (C2[1] - C1[1])/(C1[0] - C2[0])
+        self.N0 = int(N*(self.x0 - self.ForceDistMRet[0])/(self.ForceDistMRet[N-1] - self.ForceDistMRet[0]))
+        self.ForceDistMRet -= self.x0
+        self.ForceDistMApp -= self.x0
+
+
+    def AutoInvOLSFunc(self):
+        #self.ForceDistMRet
+        #self.ForceDeflDataRet
+        N_fit = int(0.8*self.N0)
+        x = np.array(self.ForceDistMRet[0:N_fit])
+        y = np.array(self.ForceDeflDataRet[0:N_fit])
+
+        C,_ = self.DoPolyFit(x,y,1)
+        self.InvOLS = 1/C[0,0]
+        print(self.InvOLS)
+
+
+
+
+    def DoPolyFit(self,x,y,deg):
+        #Linear Fitting Function
+        A = np.c_[np.ones(x.shape[0])]
+        xT = np.atleast_2d(x).T
+
+        for i in range(1,deg+1):
+            A = np.c_[xT**i,A]
+
+        C,_,_,_ = np.linalg.lstsq(A,np.atleast_2d(y).T,rcond=None)
+
+        yfit = np.matmul(A,C)
+
+        return C,yfit
 
     def DoForceSettings(self):
         self.forceDataPoints = self.forcePointsValue.value()
@@ -980,11 +1002,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ForceDeflDataRet = array.array('f',[])
         self.ForceDistDataRet = array.array('f',[])
 
-        #self.ForceDistMApp = array.array('f',[])
-        #self.ForceDistMRet = array.array('f',[])
-        #self.ForceDistData = array.array('f',range(0,2*N))
-
-        #self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options)
 
         dV = V/N
         retractPnts = 100
@@ -1017,6 +1034,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ForceDistMRet = array.array('f',dummy2)
 
         #self.forceDistMRet = self.ForceDeflDataApp*self.piezoConst*self.gain
+        self.DoZeroEstimate()
 
         self.forceAxes.cla()
         self.forceLine, = self.forceAxes.plot(self.ForceDistMApp,self.ForceDeflDataApp,'r')
