@@ -164,7 +164,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.slowTravel = 0
         self.fastTravel = 0
 
+        self.forceDataPoints = 500
+        self.extensionVoltage = -1.0
+        self.retractionVoltage = 2.5
+        self.contForceFlag  = False
+        self.piezoConst = 18.5
+        self.gain = 5
+
         self.LoadSettings()
+
         #After an OS update (April 2025), the value for "chip" has to be 0, otherwise it will not work.
         #The manual on the homepage for the rpi_hardware_pwm package originally stated that for RPi5, "chip" should be 2.
         self.chip = 0
@@ -841,12 +849,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def ForceTab(self):
         layout = QtWidgets.QGridLayout(self.forceTab)
 
-        self.forceDataPoints = 500
-        self.extensionVoltage = -1.0
-        self.retractionVoltage = 2.5
-        self.contForceFlag  = False
-        self.piezoConst = 18.5
-        self.gain = 5
+
+        self.colorR = '#5555ff'
+        self.colorA = '#ff55ff'
 
         self.ContForceTimer = QTimer()
         self.ContForceTimer.timeout.connect(self.DoForceCurve)
@@ -869,13 +874,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.forceAxes.set_ylabel("deflection / V")
         self.forceLine, = self.forceAxes.plot([0,1],[0,0],'r')
 
-        self.forcePointsLabel = QtWidgets.QLabel("Data points:")
+        self.forcePointsLabel = QtWidgets.QLabel("Points:")
         self.forcePointsValue = QtWidgets.QSpinBox()
         self.forcePointsValue.setMaximum(1000000)
         self.forcePointsValue.setValue(self.forceDataPoints)
         self.forcePointsValue.valueChanged.connect(self.DoForceSettings)
 
-        self.forceMaxDistLabel = QtWidgets.QLabel("Max. extension:")
+        self.forceMaxDistLabel = QtWidgets.QLabel("Extension:")
         self.forceMaxDistValue = QtWidgets.QDoubleSpinBox()
         self.forceMaxDistValue.setSuffix(" V")
         self.forceMaxDistValue.setMaximum(2.5)
@@ -884,7 +889,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.forceMaxDistValue.setValue(self.extensionVoltage)
         self.forceMaxDistValue.valueChanged.connect(self.DoForceSettings)
 
-        self.forceMinDistLabel = QtWidgets.QLabel("Max. retraction:")
+        self.forceMinDistLabel = QtWidgets.QLabel("Retraction:")
         self.forceMinDistValue = QtWidgets.QDoubleSpinBox()
         self.forceMinDistValue.setSuffix(" V")
         self.forceMinDistValue.setMaximum(2.5)
@@ -903,14 +908,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.piezoConstValue.valueChanged.connect(self.DoForceSettings)
 
         self.gainLabel = QtWidgets.QLabel("Gain:")
-        self.gainValue = QtWidgets.QSpinBox()
-        self.gainValue.setMaximum(10)
-        self.gainValue.setSingleStep(1)
-        self.gainValue.setValue(self.gain)
-        self.gainValue.valueChanged.connect(self.DoForceSettings)
+        self.gainValue = QtWidgets.QComboBox()
+        self.gainValue.insertItem(0,"1")
+        self.gainValue.insertItem(1,"2")
+        self.gainValue.insertItem(2,"5")
+        self.gainValue.insertItem(3,"10")
+        self.gainValue.currentIndexChanged.connect(self.DoForceSettings)
 
+        if (self.gain == 1):
+            self.gainValue.setCurrentIndex(0)
+        elif (self.gain == 2):
+            self.gainValue.setCurrentIndex(1)
+        elif (self.gain == 5):
+            self.gainValue.setCurrentIndex(2)
+        elif (self.gain == 10):
+            self.gainValue.setCurrentIndex(3)
+        else:
+            self.gainValue.setCurrentIndex(0)
 
+        #self.gainValue.setMaximum(10)
+        #self.gainValue.setSingleStep(1)
+        #self.gainValue.setValue(self.gain)
+        #self.gainValue.valueChanged.connect(self.DoForceSettings)
 
+        self.InvOLSLabel = QtWidgets.QLabel("InvOLS:")
+        self.InvOLSValue = QtWidgets.QLineEdit()
+        self.InvOLSValue.setReadOnly(1)
+        self.InvOLSValue.setMaximumWidth(120)
 
         layout.addWidget(self.forceCanvas,0,0,7,3)
 
@@ -930,18 +954,35 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.forceMaxDistLabel,4,3)
         layout.addWidget(self.forceMaxDistValue,4,4)
 
+        layout.addWidget(self.InvOLSLabel,5,3)
+        layout.addWidget(self.InvOLSValue,5,4)
         layout.addWidget(self.AutoInvOLSButton,5,5)
 
         layout.addWidget(self.DoForceButton,6,5)
         layout.addWidget(self.DoContForceButton,6,3,1,2)
 
 
+    def FindPlateauEnd(self,data, th=-0.02):
+        dy = np.diff(data)
+        border = 0
+        thresh = th
+        for i in range(0,len(dy)-2):
+            if (dy[i] < thresh):
+                border = i
+                break
+
+        return border
+
+
     def DoZeroEstimate(self):
         N = len(self.ForceDistMRet)
+
+        fit_start = self.FindPlateauEnd(self.ForceDeflDataRet)
+
         x1 = np.array(self.ForceDistMRet[int(0.9*N):N-1])
         y1 = np.array(self.ForceDeflDataRet[int(0.9*N):N-1])
-        x2 = np.array(self.ForceDistMRet[0:int(0.1*N)])
-        y2 = np.array(self.ForceDeflDataRet[0:int(0.1*N)])
+        x2 = np.array(self.ForceDistMRet[fit_start:int(fit_start + 0.1*N)])
+        y2 = np.array(self.ForceDeflDataRet[fit_start:int(fit_start + 0.1*N)])
 
         C1,_ = self.DoPolyFit(x1,y1,1)
         C2,_ = self.DoPolyFit(x2,y2,1)
@@ -955,14 +996,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def AutoInvOLSFunc(self):
         #self.ForceDistMRet
         #self.ForceDeflDataRet
-        N_fit = int(0.8*self.N0)
-        x = np.array(self.ForceDistMRet[0:N_fit])
-        y = np.array(self.ForceDeflDataRet[0:N_fit])
+        fit_start = self.FindPlateauEnd(self.ForceDeflDataRet,th=-0.04)
 
-        C,_ = self.DoPolyFit(x,y,1)
-        self.InvOLS = 1/C[0,0]
-        print(self.InvOLS)
+        N_fit = int(0.75*self.N0)
+        x = np.array(self.ForceDistMRet[fit_start:N_fit])
+        y = np.array(self.ForceDeflDataRet[fit_start:N_fit])
 
+        C,y_fit = self.DoPolyFit(x,y,1)
+        self.InvOLS = -1/C[0,0]
+        self.forceLine, = self.forceAxes.plot(x,y_fit,'k')
+        self.forceCanvas.draw()
+        self.InvOLSValue.setText("{InvOLS:.1f} nm/V".format(InvOLS = self.InvOLS))
 
 
 
@@ -985,7 +1029,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.extensionVoltage = self.forceMaxDistValue.value()
         self.retractionVoltage = self.forceMinDistValue.value()
         self.piezoConst = self.piezoConstValue.value()
-        self.gain = self.gainValue.value()
+
+        if (self.gainValue.currentIndex() == 0):
+            self.gain = 1
+        elif (self.gainValue.currentIndex() == 1):
+            self.gain = 2
+        elif (self.gainValue.currentIndex() == 2):
+            self.gain = 5
+        elif (self.gainValue.currentIndex() == 3):
+            self.gain = 10
+
+        self.SaveSettings()
 
     def DoForceCurveButtonFunc(self):
         self.ReadADTimer.stop()
@@ -1037,8 +1091,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.DoZeroEstimate()
 
         self.forceAxes.cla()
-        self.forceLine, = self.forceAxes.plot(self.ForceDistMApp,self.ForceDeflDataApp,'r')
-        self.forceLine, = self.forceAxes.plot(self.ForceDistMRet,self.ForceDeflDataRet,'b')
+        self.forceLine, = self.forceAxes.plot(self.ForceDistMApp,self.ForceDeflDataApp,self.colorA)
+        self.forceLine, = self.forceAxes.plot(self.ForceDistMRet,self.ForceDeflDataRet,self.colorR)
         self.forceCanvas.draw()
 
     def DoContForceCurve(self):
@@ -1419,6 +1473,12 @@ class MainWindow(QtWidgets.QMainWindow):
         settings_file.write(self.fastLimitState.to_bytes(8,byteorder='big'))
         settings_file.write(self.slowLimitState.to_bytes(8,byteorder='big'))
 
+        settings_file.write(self.forceDataPoints.to_bytes(8,byteorder='big'))
+        settings_file.write(self.float_to_bytes(self.extensionVoltage))
+        settings_file.write(self.float_to_bytes(self.retractionVoltage))
+        settings_file.write(self.float_to_bytes(self.piezoConst))
+        settings_file.write(self.gain.to_bytes(8,byteorder='big'))
+
         settings_file.close()
 
         #self.LoadSettings()
@@ -1463,6 +1523,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
             self.fastLimitState = int.from_bytes(settings_file.read(8),byteorder='big')
             self.slowLimitState = int.from_bytes(settings_file.read(8),byteorder='big')
+
+
+            self.forceDataPoints = int.from_bytes(settings_file.read(8),byteorder='big')
+            self.extensionVoltage = self.bytes_to_float(settings_file.read(8))
+            self.retractionVoltage = self.bytes_to_float(settings_file.read(8))
+            self.piezoConst = self.bytes_to_float(settings_file.read(8))
+            self.gain = int.from_bytes(settings_file.read(8),byteorder='big')
 
             settings_file.close()
         except:
