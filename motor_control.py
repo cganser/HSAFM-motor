@@ -29,11 +29,18 @@ from daqhats import mcc118, mcc152, OptionFlags, HatIDs, HatError, hat_list, DIO
 from rpi_hardware_pwm import HardwarePWM
 
 from PyQt5 import QtWidgets, QtGui
-from PyQt5.QtCore import QSize, Qt, QObject, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import QSize, Qt, QObject, QThread, pyqtSignal, QTimer, QThreadPool, QRunnable
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+import buzzer
+
+class BuzzerWorker(QRunnable):
+
+    def run(self):
+        self.buz = buzzer.ApproachBuzzer(buzzer="passive")
+        self.buz.playStandardSound2()
 
 class hat_device():
     def __init__(self,hType):
@@ -84,6 +91,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         #gc.enable()
+
+        self.threadpool = QThreadPool()
 
         #select and initialize the AD HAT
         self.ADHat = hat_device("mcc118")
@@ -1306,6 +1315,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def AutoApproachCheck(self):
         if (self.ampV < self.initialAmp*self.ampRatio) or (self.zpiV < self.zpiLimit) or (self.defV > self.defLimit):
             self.MotorStop()
+            worker = BuzzerWorker()
+            self.threadpool.start(worker)
+
 
     def MotorStopButtonFunction(self):
         self.MotorStop()
