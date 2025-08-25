@@ -37,7 +37,16 @@ class ApproachBuzzer():
             self.fList = []
             self.tList = []
 
-            self.pwm = GPIO.PWM(self.pin,self.freq)
+            finished = 0
+
+            while finished == 0:
+                try:
+                    self.pwm = GPIO.PWM(self.pin,self.freq)
+                    finished = 1
+                except RuntimeError:
+                    sleep(0.1)
+                    pass
+
             self.pwm.start(0)
         else:
             self.buzzerType = 1
@@ -93,6 +102,9 @@ class ApproachBuzzer():
         self.tList = time_list
 
     def setMelody2(self,notes,time,pause):
+        #the notes should be put in a string like "A2 Bb D4"
+        #the time is the length of each note
+        #the pause is the silent period between two notes
         self.fList = []
         self.tList = []
 
@@ -145,4 +157,13 @@ class ApproachBuzzer():
         else:
             self.playSound(0,2)
 
+    def sweep(self,df,dt,startN,N):
+        for i in range(startN,N):
+            f = i*df
+            self.playSound(f,dt)
 
+
+#buz = ApproachBuzzer()
+#buz.setMelody2("A4 C5 C5 D4 A5 A5 A5 D4 E4 E5 D4 D5 F4 F5 G4 Ab4 A4",0.15,0.00)
+#buz.playMelody()
+#buz.sweep(1,0.01,1,5700)

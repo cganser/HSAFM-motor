@@ -24,6 +24,9 @@ import math
 import numpy as np
 matplotlib.use('Qt5Agg')
 
+
+from datetime import datetime
+
 from daqhats import mcc118, mcc152, OptionFlags, HatIDs, HatError, hat_list, DIOConfigItem
 
 from rpi_hardware_pwm import HardwarePWM
@@ -48,6 +51,8 @@ class hat_device():
         self.type = hType
         if self.type == "mcc118":
             self.id = HatIDs.MCC_118
+            self.maxV = 10.0
+            self.maxADC = 4096.0
         elif self.type == "mcc152":
             self.id = HatIDs.MCC_152
         else:
@@ -149,6 +154,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.defChn = 1
         self.ampChn = 2
         self.zpiChn = 3
+        self.disChn = 4
 
         self.initialAmp = 0
         self.initialDef = 0
@@ -179,7 +185,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.contForceFlag  = False
         self.piezoConst = 18.5
         self.gain = 5
+        self.InvOLS = 1
 
+        self.homeFolder = os.path.expanduser("~")
+        self.forceFolder = self.homeFolder+"/force_curves"
+        os.makedirs(self.forceFolder, exist_ok=True)
+        self.fileN = 0
         self.LoadSettings()
 
         #After an OS update (April 2025), the value for "chip" has to be 0, otherwise it will not work.
@@ -715,6 +726,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ZPiezoChnBox.setValue(self.zpiChn)
         self.ZPiezoChnBox.valueChanged.connect(self.DoAdvancedSettings)
 
+        self.ForceDistChnLabel = QtWidgets.QLabel("Force Dist. Chn.")
+        self.ForceDistChnBox = QtWidgets.QSpinBox()
+        self.ForceDistChnBox.setRange(0,7)
+        self.ForceDistChnBox.setObjectName("DisChn")
+        self.ForceDistChnBox.setValue(self.disChn)
+        self.ForceDistChnBox.valueChanged.connect(self.DoAdvancedSettings)
+
 
         self.PowerLabel = QtWidgets.QLabel("Power Cycle")
         self.PowerBox = QtWidgets.QSpinBox()
@@ -770,6 +788,9 @@ class MainWindow(QtWidgets.QMainWindow):
         channelLayout.addWidget(self.AmplitudeChnBox,7,2)
         channelLayout.addWidget(self.ZPiezoChnLabel,8,1)
         channelLayout.addWidget(self.ZPiezoChnBox,8,2)
+        channelLayout.addWidget(self.ForceDistChnLabel,9,1)
+        channelLayout.addWidget(self.ForceDistChnBox,9,2)
+
 
         advMotorLayout.addWidget(self.PowerLabel,1,1)
         advMotorLayout.addWidget(self.PowerBox,1,2)
@@ -808,6 +829,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ampChn = value
         elif objectName == "ZChn":
             self.zpiChn = value
+        elif objectName == "DisChn":
+            self.disChn = value
         elif objectName == "PowerCycle":
             self.powerCycle = value
         elif objectName == "maxTravFast":
@@ -857,7 +880,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def ForceTab(self):
         layout = QtWidgets.QGridLayout(self.forceTab)
-
 
         self.colorR = '#5555ff'
         self.colorA = '#ff55ff'
@@ -1065,30 +1087,73 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ForceDeflDataRet = array.array('f',[])
         self.ForceDistDataRet = array.array('f',[])
 
+        self.time_step = 0
+        self.ForceDefl_save = np.array([], dtype=np.int16)
+        self.ForceDist_save = np.array([], dtype=np.int16)
+
 
         dV = V/N
         retractPnts = 100
 
+        start_time = time.time()
         for i in range(0,retractPnts):
             #voltage = self.forceOffset + i*self.retractionVoltage/retractPnts
             voltage = self.forceOffset + self.retractionVoltage*(1-math.cos(i*math.pi/retractPnts))/2
             self.DAHat.hat.a_out_write(0,voltage)
 
+            dummyDefl = self.ADHat.hat.a_in_read(self.defChn,options=OptionFlags.NOSCALEDATA)
+            dummyDist = self.ADHat.hat.a_in_read(self.disChn,options=OptionFlags.NOSCALEDATA)
+            self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
+            self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+
+        time2 = time.time()
+
         F0 = self.forceOffset + self.retractionVoltage
 
         for i in range(0,N):
             self.DAHat.hat.a_out_write(0,F0 - i*dV)
-            self.ForceDeflDataApp.append(self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options))
-            self.ForceDistDataApp.append(self.ADHat.hat.a_in_read(4,self.ADHat.options))
+            dummyDefl = self.ADHat.hat.a_in_read(self.defChn,options=OptionFlags.NOSCALEDATA)
+            dummyDist = self.ADHat.hat.a_in_read(self.disChn,options=OptionFlags.NOSCALEDATA)
+
+            self.ForceDeflDataApp.append(2*self.ADHat.maxV*(dummyDefl/self.ADHat.maxADC)-self.ADHat.maxV)
+            self.ForceDistDataApp.append(2*self.ADHat.maxV*(dummyDist/self.ADHat.maxADC)-self.ADHat.maxV)
+
+            self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
+            self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+
+        time3 = time.time()
 
         for i in range(0,N):
             self.DAHat.hat.a_out_write(0,F0 - (N-i)*dV)
-            self.ForceDeflDataRet.append(self.ADHat.hat.a_in_read(self.defChn,self.ADHat.options))
-            self.ForceDistDataRet.append(self.ADHat.hat.a_in_read(4,self.ADHat.options))
+            #self.ADHat.options
+            dummyDefl = self.ADHat.hat.a_in_read(self.defChn,options=OptionFlags.NOSCALEDATA)
+            dummyDist = self.ADHat.hat.a_in_read(self.disChn,options=OptionFlags.NOSCALEDATA)
+
+            self.ForceDeflDataRet.append(2*self.ADHat.maxV*(dummyDefl/self.ADHat.maxADC)-self.ADHat.maxV)
+            self.ForceDistDataRet.append(2*self.ADHat.maxV*(dummyDist/self.ADHat.maxADC)-self.ADHat.maxV)
+
+            self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
+            self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+
+        time4 = time.time()
 
         for i in range(0,retractPnts):
             voltage = self.forceOffset + self.retractionVoltage*(1+math.cos(i*math.pi/retractPnts))/2
             self.DAHat.hat.a_out_write(0,voltage)
+
+            dummyDefl = self.ADHat.hat.a_in_read(self.defChn,options=OptionFlags.NOSCALEDATA)
+            dummyDist = self.ADHat.hat.a_in_read(self.disChn,options=OptionFlags.NOSCALEDATA)
+            self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
+            self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+
+
+        stop_time = time.time()
+        time_diff = stop_time-start_time
+        self.all_force_pnts = 2*N + 2*retractPnts
+        self.time_step = time_diff/(self.all_force_pnts)
+
+        self.apprT = time3 - time2
+        self.retrT = time4 - time3
 
         dummy = [(x-self.forceOffset)*self.piezoConst*self.gain for x in self.ForceDistDataApp]
         self.ForceDistMApp = array.array('f',dummy)
@@ -1104,11 +1169,129 @@ class MainWindow(QtWidgets.QMainWindow):
         self.forceLine, = self.forceAxes.plot(self.ForceDistMRet,self.ForceDeflDataRet,self.colorR)
         self.forceCanvas.draw()
 
+        self.SaveForceCurve()
+        self.LoadForceCurve()
+
+    def SaveForceCurve(self):
+        num_chn = 2
+        sample_cnt = self.all_force_pnts
+        time_interval = int(self.time_step*1e9) #in nanoseconds
+        maxADC = int(self.ADHat.maxADC)
+        rangeA = int(2*self.ADHat.maxV)
+        rangeB = int(2*self.ADHat.maxV)
+        rangeC = 0
+        rangeD = 0
+        PiezoZ = self.piezoConst
+        DriverG = self.gain
+        QCtrlG = 1
+        sqrAmpl = 1
+        InvOLS = self.InvOLS
+        apprT = self.apprT
+        retrT = self.retrT
+        holdT = 0
+        ForceX = 0
+        ForceY = 0
+
+        fileN = 0
+
+        today = datetime.now()
+        todayFormat = today.strftime("%Y%m%d")
+        saveName = "forceCurve_" + todayFormat + "_" + str(fileN) + ".dfc"
+        saveFolder = self.forceFolder + "/" + todayFormat
+
+        os.makedirs(saveFolder, exist_ok=True)
+
+        self.savePath = saveFolder + "/" + saveName
+
+        while os.path.exists(self.savePath):
+            fileN += 1
+            saveName = "forceCurve_" + todayFormat + "_" + str(fileN) + ".dfc"
+            self.savePath = saveFolder + "/" + saveName
+
+
+        with open(self.savePath, 'wb') as f:
+            f.write(struct.pack('<I', num_chn))
+            f.write(struct.pack('<I', sample_cnt))
+            f.write(struct.pack('<i', time_interval))
+            f.write(struct.pack('<h', maxADC))
+            f.write(struct.pack('<H', rangeA))
+            f.write(struct.pack('<H', rangeB))
+            f.write(struct.pack('<H', rangeC))
+            f.write(struct.pack('<H', rangeD))
+            f.write(struct.pack('<f', PiezoZ))
+            f.write(struct.pack('<f', DriverG))
+            f.write(struct.pack('<f', QCtrlG))
+            f.write(struct.pack('<d', sqrAmpl))
+            f.write(struct.pack('<d', InvOLS))
+            f.write(struct.pack('<d', apprT))
+            f.write(struct.pack('<d', retrT))
+            f.write(struct.pack('<d', holdT))
+            f.write(struct.pack('<i', ForceX))
+            f.write(struct.pack('<i', ForceY))
+
+            self.ForceDefl_save.tofile(f)
+            self.ForceDist_save.tofile(f)
+
+        #print("Finished Saving!")
+        #print(len(self.ForceDefl_save))
+        #print(len(self.ForceDist_save))
+
+    def LoadForceCurve(self):
+        name = "test.dfc"
+
+        f = open(name, 'rb')
+
+        num_chn = struct.unpack('I',f.read(4))[0]
+        sample_cnt = struct.unpack('I', f.read(4))[0]
+        time_interval = struct.unpack('i', f.read(4))[0]
+        maxADC = struct.unpack('h', f.read(2))[0]
+        rangeA = struct.unpack('H', f.read(2))[0]
+        rangeB = struct.unpack('H', f.read(2))[0]
+        rangeC = struct.unpack('H', f.read(2))[0]
+        rangeD = struct.unpack('H', f.read(2))[0]
+        PiezoZ = struct.unpack('f', f.read(4))[0]
+        DriverG = struct.unpack('f', f.read(4))[0]
+        QCtrlG = struct.unpack('f', f.read(4))[0]
+        sqrAmpl = struct.unpack('d', f.read(8))[0]
+        InvOLS = struct.unpack('d', f.read(8))[0]
+        apprT = struct.unpack('d', f.read(8))[0]
+        retrT = struct.unpack('d', f.read(8))[0]
+        holdT = struct.unpack('d', f.read(8))[0]
+        ForceX = struct.unpack('i', f.read(4))[0]
+        ForceY = struct.unpack('i', f.read(4))[0]
+
+        DataA = np.array([])
+        DataB = np.array([])
+
+        DataA = np.append(DataA, np.fromfile(f,dtype="int16", count = sample_cnt))
+        DataB = np.append(DataB, np.fromfile(f,dtype="int16", count = sample_cnt))
+
+        f.close()
+
+        #print(num_chn)
+        #print(sample_cnt)
+        #print(time_interval)
+        #print(maxADC)
+        #print(rangeA)
+        #print(rangeB)
+        #print(rangeC)
+        #print(rangeD)
+        #print(PiezoZ)
+        #print(DriverG)
+        #print(QCtrlG)
+        #print(sqrAmpl)
+        #print(InvOLS)
+        #print(apprT)
+        #print(retrT)
+        #print(holdT)
+        #print(ForceX)
+        #print(ForceY)
+
+
     def DoContForceCurve(self):
         self.DoForceButton.setEnabled(0)
         self.DoContForceButton.setText("Stop!")
         self.DoContForceButton.clicked.connect(self.StopContForceCurve)
-
         self.ContForceTimer.start()
 
     def StopContForceCurve(self):
@@ -1490,6 +1673,7 @@ class MainWindow(QtWidgets.QMainWindow):
         settings_file.write(self.float_to_bytes(self.retractionVoltage))
         settings_file.write(self.float_to_bytes(self.piezoConst))
         settings_file.write(self.gain.to_bytes(8,byteorder='big'))
+        settings_file.write(self.disChn.to_bytes(8,byteorder='big'))
 
         settings_file.close()
 
@@ -1542,6 +1726,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.retractionVoltage = self.bytes_to_float(settings_file.read(8))
             self.piezoConst = self.bytes_to_float(settings_file.read(8))
             self.gain = int.from_bytes(settings_file.read(8),byteorder='big')
+            self.disChn = int.from_bytes(settings_file.read(8),byteorder='big')
 
             settings_file.close()
         except:
