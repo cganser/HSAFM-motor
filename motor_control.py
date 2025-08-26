@@ -39,11 +39,14 @@ from matplotlib.figure import Figure
 
 import buzzer
 
+apprSound = 1
+
 class BuzzerWorker(QRunnable):
 
     def run(self):
+        global apprSound
         self.buz = buzzer.ApproachBuzzer(buzzer="passive")
-        self.buz.playStandardSound2()
+        self.buz.playStandardSound(apprSound)
 
 class hat_device():
     def __init__(self,hType):
@@ -467,6 +470,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def SettingsTab(self):
+        global apprSound
+
         layout = QtWidgets.QGridLayout(self.settingTab)
         speedLayout = QtWidgets.QGridLayout()
         approachLayout = QtWidgets.QGridLayout()
@@ -478,13 +483,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.approachBox = QtWidgets.QGroupBox("Auto Approach Conditions")
         layout.addWidget(self.approachBox,0,1)
 
-
         #Speed Settings
         self.AutoApproachSpeedLabel = QtWidgets.QLabel("Auto")
         self.AutoApproachSpeedBox = QtWidgets.QSpinBox()
         self.AutoApproachSpeedBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
         self.AutoApproachSpeedBox.setRange(0,60000)
         self.AutoApproachSpeedBox.setValue(self.autoApproachFreq)
+        self.AutoApproachSpeedBox.setReadOnly(True)
         self.AutoAppUpButton = QtWidgets.QPushButton("Up", clicked=self.UpDownButtonFunction)
         self.AutoAppUpButton.setObjectName("AutoAppUpButton")
         self.AutoAppDownButton = QtWidgets.QPushButton("Down", clicked=self.UpDownButtonFunction)
@@ -495,6 +500,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.SlowSpeedBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
         self.SlowSpeedBox.setRange(0,60000)
         self.SlowSpeedBox.setValue(self.slowMoveFreq)
+        self.SlowSpeedBox.setReadOnly(True)
         self.SlowSpeedUpButton = QtWidgets.QPushButton("Up", clicked=self.UpDownButtonFunction)
         self.SlowSpeedUpButton.setObjectName("SlowSpeedUpButton")
         self.SlowSpeedDownButton = QtWidgets.QPushButton("Down", clicked=self.UpDownButtonFunction)
@@ -505,6 +511,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.FastSpeedBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
         self.FastSpeedBox.setRange(0,60000)
         self.FastSpeedBox.setValue(self.fastMoveFreq)
+        self.FastSpeedBox.setReadOnly(True)
         self.FastSpeedUpButton = QtWidgets.QPushButton("Up", clicked=self.UpDownButtonFunction)
         self.FastSpeedUpButton.setObjectName("FastSpeedUpButton")
         self.FastSpeedDownButton= QtWidgets.QPushButton("Down", clicked=self.UpDownButtonFunction)
@@ -515,6 +522,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.AccelerationBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
         self.AccelerationBox.setRange(0,10000)
         self.AccelerationBox.setValue(self.acceleration)
+        self.AccelerationBox.setReadOnly(True)
         self.AccelerationUpButton = QtWidgets.QPushButton("Up", clicked=self.UpDownButtonFunction)
         self.AccelerationUpButton.setObjectName("AccelerationUpButton")
         self.AccelerationDownButton = QtWidgets.QPushButton("Down", clicked=self.UpDownButtonFunction)
@@ -547,6 +555,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.AmplitudeConditionBox.setSuffix("%")
         self.AmplitudeConditionBox.setRange(0,100)
         self.AmplitudeConditionBox.setValue(int(100*self.ampRatio))
+        self.AmplitudeConditionBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
+        self.AmplitudeConditionBox.setReadOnly(True)
         self.AmplitudeUpButton = QtWidgets.QPushButton("Up", clicked=self.UpDownButtonFunction)
         self.AmplitudeUpButton.setObjectName("AmplitudeUpButton")
         self.AmplitudeDownButton = QtWidgets.QPushButton("Down", clicked=self.UpDownButtonFunction)
@@ -557,6 +567,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.DeflectionConditionBox.setSuffix(" V")
         self.DeflectionConditionBox.setRange(-10,10)
         self.DeflectionConditionBox.setValue(self.defLimit)
+        self.DeflectionConditionBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
+        self.DeflectionConditionBox.setReadOnly(True)
         self.DeflectionUpButton = QtWidgets.QPushButton("Up", clicked=self.UpDownButtonFunction)
         self.DeflectionUpButton.setObjectName("DeflectionUpButton")
         self.DeflectionDownButton = QtWidgets.QPushButton("Down", clicked=self.UpDownButtonFunction)
@@ -567,10 +579,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ZPiezoConditionBox.setSuffix(" V")
         self.ZPiezoConditionBox.setRange(-10,10)
         self.ZPiezoConditionBox.setValue(self.zpiLimit)
+        self.ZPiezoConditionBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
+        self.ZPiezoConditionBox.setReadOnly(True)
         self.ZPiezoUpButton = QtWidgets.QPushButton("Up", clicked=self.UpDownButtonFunction)
         self.ZPiezoUpButton.setObjectName("ZPiezoUpButton")
         self.ZPiezoDownButton = QtWidgets.QPushButton("Down", clicked=self.UpDownButtonFunction)
         self.ZPiezoDownButton.setObjectName("ZPiezoDownButton")
+
+        self.ApproachSoundLabel = QtWidgets.QLabel("Approach Sound")
+        self.ApproachSoundBox = QtWidgets.QSpinBox()
+        self.ApproachSoundBox.setRange(0,10)
+        self.ApproachSoundBox.setValue(apprSound)
+        self.ApproachSoundBox.setButtonSymbols(QtWidgets.QSpinBox.NoButtons)
+        self.ApproachSoundBox.setReadOnly(True)
+        self.SoundUpButton = QtWidgets.QPushButton("Next", clicked=self.UpDownButtonFunction)
+        self.SoundUpButton.setObjectName("SoundUpButton")
+        self.SoundDownButton = QtWidgets.QPushButton("Prev.", clicked=self.UpDownButtonFunction)
+        self.SoundDownButton.setObjectName("SoundDownButton")
+
 
         approachLayout.addWidget(self.AmplitudeConditionLabel,1,1)
         approachLayout.addWidget(self.AmplitudeConditionBox,1,2,1,2)
@@ -587,10 +613,17 @@ class MainWindow(QtWidgets.QMainWindow):
         approachLayout.addWidget(self.ZPiezoUpButton,3,4)
         approachLayout.addWidget(self.ZPiezoDownButton,3,5)
 
+        approachLayout.addWidget(self.ApproachSoundLabel,4,1)
+        approachLayout.addWidget(self.ApproachSoundBox,4,2,1,2)
+        approachLayout.addWidget(self.SoundUpButton,4,4)
+        approachLayout.addWidget(self.SoundDownButton,4,5)
+
         self.approachBox.setLayout(approachLayout)
 
 
     def UpDownButtonFunction(self):
+        global apprSound
+
         objectName = self.sender().objectName()
         #Up Buttons
         if objectName == "AutoAppUpButton":
@@ -604,9 +637,9 @@ class MainWindow(QtWidgets.QMainWindow):
         elif objectName == "AmplitudeUpButton":
             self.ampRatio += 0.05
         elif objectName == "DeflectionUpButton":
-            self.defLimit += 0.2
+            self.defLimit += 0.1
         elif objectName == "ZPiezoUpButton":
-            self.zpiLimit += 0.2
+            self.zpiLimit += 0.1
         #Down Buttons
         elif objectName == "AutoAppDownButton":
             self.autoApproachFreq -= self.dSpeed
@@ -636,6 +669,17 @@ class MainWindow(QtWidgets.QMainWindow):
             self.zpiLimit -= 0.2
             if self.zpiLimit < -10:
                 self.zpiLimit = -10
+        elif objectName == "SoundUpButton":
+            apprSound += 1
+            worker = BuzzerWorker()
+            self.threadpool.start(worker)
+        elif objectName == "SoundDownButton":
+            apprSound -= 1
+            if apprSound < 0:
+                apprSound = 0
+
+            worker = BuzzerWorker()
+            self.threadpool.start(worker)
 
         self.AutoApproachSpeedBox.setValue(self.autoApproachFreq)
         self.SlowSpeedBox.setValue(self.slowMoveFreq)
@@ -645,6 +689,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.AmplitudeConditionBox.setValue(int(100*self.ampRatio))
         self.DeflectionConditionBox.setValue(self.defLimit)
         self.ZPiezoConditionBox.setValue(self.zpiLimit)
+        self.ApproachSoundBox.setValue(apprSound)
+
         self.SaveSettings()
 
     def AdvancedTab(self):
@@ -1629,6 +1675,8 @@ class MainWindow(QtWidgets.QMainWindow):
         return  result
 
     def SaveSettings(self):
+        global apprSound
+
         settings_file = open("settings.dat","wb")
 
         settings_file.write(self.ADUpdateTimeMS.to_bytes(8,byteorder='big'))
@@ -1675,11 +1723,14 @@ class MainWindow(QtWidgets.QMainWindow):
         settings_file.write(self.gain.to_bytes(8,byteorder='big'))
         settings_file.write(self.disChn.to_bytes(8,byteorder='big'))
 
+        settings_file.write(apprSound.to_bytes(8,byteorder='big'))
+
         settings_file.close()
 
         #self.LoadSettings()
 
     def LoadSettings(self):
+        global apprSound
         try:
             settings_file = open("settings.dat", "rb")
 
@@ -1727,6 +1778,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.piezoConst = self.bytes_to_float(settings_file.read(8))
             self.gain = int.from_bytes(settings_file.read(8),byteorder='big')
             self.disChn = int.from_bytes(settings_file.read(8),byteorder='big')
+
+            apprSound = int.from_bytes(settings_file.read(8),byteorder='big')
 
             settings_file.close()
         except:

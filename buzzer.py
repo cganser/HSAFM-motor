@@ -101,24 +101,35 @@ class ApproachBuzzer():
         self.fList = freq_list
         self.tList = time_list
 
-    def setMelody2(self,notes,time,pause):
+    def setMelody2(self,notes,gap,bpm, octave_shift=0):
         #the notes should be put in a string like "A2 Bb D4"
         #the time is the length of each note
         #the pause is the silent period between two notes
         self.fList = []
         self.tList = []
 
+        dt = 60.0/bpm
+
         sep_notes = notes.split(' ')
 
         for item in sep_notes:
-            note = item[0:len(item)-1]
-            octave = int(item[len(item)-1])
-            freq = self.noteToFreq(note,octave)
+            if item[0] == 'p':
+                freq = 0
+                note_len = float(item[len(item)-2])/float(item[len(item)-1])
+                time = note_len*dt
+
+            else:
+                note = item[0:len(item)-3]
+                octave = int(item[len(item)-3]) + octave_shift
+                freq = self.noteToFreq(note,octave)
+                note_len = float(item[len(item)-2])/float(item[len(item)-1])
+                time = note_len*dt
+
 
             self.fList.append(freq)
             self.tList.append(time)
             self.fList.append(0)
-            self.tList.append(pause)
+            self.tList.append(gap)
 
     def playMelody(self):
         for i in range(0,len(self.fList)):
@@ -127,31 +138,18 @@ class ApproachBuzzer():
             else:
                 sleep(self.tList[i])
 
-    def playStandardSound(self):
+    def playStandardSound(self,nr):
 
         if self.buzzerType == 0:
-            startF = 1
-            time = 0.01
+            if nr == 1:
+                self.setMelody2("A414 A414 B424",0.05,120)
+            if nr == 2:
+                self.setMelody2("D514 D514 D514 D534 Bb424 C524 D524 C514 D524",0.05,180)
+            if nr == 3:
+                self.setMelody2("A424",0.05,120)
+            if nr == 4:
+                self.setMelody2("G414 G414 G414 Eb434",0.05,120)
 
-            for i in range(20,50):
-                self.playSound(i**2*startF,time)
-
-            for i in range(20,50):
-                self.playSound(i**2*startF,time)
-
-            for i in range(20,55):
-                self.playSound(i**2*startF,time)
-
-        else:
-            self.playSound(0,2)
-
-    def playStandardSound2(self):
-
-        if self.buzzerType == 0:
-
-            freq = [500, 0, 500, 0, 800]
-            time = [0.1, 0.1, 0.1, 0.01, 0.3]
-            self.setMelody(freq,time)
             self.playMelody()
 
         else:
@@ -163,7 +161,8 @@ class ApproachBuzzer():
             self.playSound(f,dt)
 
 
-#buz = ApproachBuzzer()
-#buz.setMelody2("A4 C5 C5 D4 A5 A5 A5 D4 E4 E5 D4 D5 F4 F5 G4 Ab4 A4",0.15,0.00)
+#buz = ApproachBuzzer(buzzer="passive")
+#buz.setMelody2("C514 C514 C514 C524 Ab414 Bb524 C524 Bb514 C524",0.01,90)
 #buz.playMelody()
-#buz.sweep(1,0.01,1,5700)
+#buz.sweep(100,0.1,1,7000)
+#buz.playSound(2800,10)
