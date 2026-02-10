@@ -1202,7 +1202,11 @@ class MainWindow(QtWidgets.QMainWindow):
         C2,_ = self.DoPolyFit(x2,y2,1)
 
         self.x0 = (C2[1] - C1[1])/(C1[0] - C2[0])
-        self.N0 = int(N*(self.x0 - self.ForceDistMRet[0])/(self.ForceDistMRet[N-1] - self.ForceDistMRet[0]))
+        try:
+            self.N0 = int(N*(self.x0 - self.ForceDistMRet[0])/(self.ForceDistMRet[N-1] - self.ForceDistMRet[0]))
+        except:
+            self.N0 = 0
+
         self.ForceDistMRet -= self.x0
         self.ForceDistMApp -= self.x0
 
@@ -1353,7 +1357,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.forceCanvas.draw()
 
         self.SaveForceCurve()
-        self.LoadForceCurve()
+        #self.LoadForceCurve()
 
     def SaveForceCurve(self):
         num_chn = 2
