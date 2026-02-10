@@ -246,6 +246,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.forceFolder = self.homeFolder+"/force_curves"
         os.makedirs(self.forceFolder, exist_ok=True)
         self.fileN = 0
+        self.fanChn = 7
+
         self.LoadSettings()
 
         #After an OS update (April 2025), the value for "chip" has to be 0, otherwise it will not work.
@@ -258,7 +260,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pwm_cw.stop()
 
         self.fan = None
-        self.fanChn = 7
         if self.fanControlFlag != 0:
             self.fan = FanControl(self.DAHat.hat, chn=self.fanChn)
             self.fan.on()
@@ -895,6 +896,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.FanControlChnBox.setObjectName("FanControlChn")
         self.FanControlChnBox.currentTextChanged.connect(self.DoAdvancedSettings)
 
+        if (self.fanChn == 7):
+            self.FanControlChnBox.setCurrentIndex(0)
+        elif (self.fanChn == 22):
+            self.FanControlChnBox.setCurrentIndex(1)
+        elif (self.fanChn == 23):
+            self.FanControlChnBox.setCurrentIndex(2)
+        elif (self.fanChn == 24):
+            self.FanControlChnBox.setCurrentIndex(3)
+        elif (self.fanChn == 27):
+            self.FanControlChnBox.setCurrentIndex(4)
+        else:
+            self.FanControlChnBox.setCurrentIndex(0)
+
+
+
         #channelLayout.addWidget(self.motorSelectLabel,1,1)
         #channelLayout.addWidget(self.motorSelectBox,1,2)
         #channelLayout.addWidget(self.directionChnLabel,2,1)
@@ -992,7 +1008,7 @@ class MainWindow(QtWidgets.QMainWindow):
             elif "GPIO24" in text:
                 self.fanChn = 24
             elif "GPIO27" in text:
-                self.fanChn = 24
+                self.fanChn = 27
 
 
             if self.fan != None:
@@ -1849,6 +1865,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         settings_file.write(self.fanControlFlag.to_bytes(8,byteorder='big'))
 
+        settings_file.write(self.fanChn.to_bytes(8,byteorder='big'))
+
         settings_file.close()
 
         #self.LoadSettings()
@@ -1906,7 +1924,8 @@ class MainWindow(QtWidgets.QMainWindow):
             apprSound = int.from_bytes(settings_file.read(8),byteorder='big')
 
             self.fanControlFlag = int.from_bytes(settings_file.read(8),byteorder='big')
-            print(self.fanControlFlag)
+            self.fanChn = int.from_bytes(settings_file.read(8),byteorder='big')
+
             settings_file.close()
         except:
             print("Settings file 'settings.dat' not found; creating one for next time.")
