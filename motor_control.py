@@ -121,6 +121,8 @@ class FanControl():
                 self.pin = 18
             elif self.chn == 27:
                 self.pin = 13
+            else:
+                self.pin = 15
 
             GPIO.setwarnings(False)
             GPIO.setmode(GPIO.BOARD)
