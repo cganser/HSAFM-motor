@@ -37,6 +37,10 @@ from PyQt5.QtCore import QSize, Qt, QObject, QThread, pyqtSignal, QTimer, QThrea
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+
+import RPi.GPIO as GPIO
+
+
 import buzzer
 
 apprSound = 1
@@ -92,7 +96,52 @@ class hat_device():
         else:
             self.hat = None
 
+class FanControl():
+    def __init__(self,hat,chn=7):
+        self.chn = chn
+        self.hat = hat
 
+        self.mode = 0 # 0 - DIO // 1 - GPIO
+        self.state = 0
+
+        self.set_fan()
+
+    def set_fan(self):
+        if self.chn == 7:
+            #DIO7
+            self.mode = 0
+            self.hat.dio_output_write_bit(self.chn, self.state)
+        else:
+            self.mode = 1
+            if self.chn == 22:
+                self.pin = 15
+            elif self.chn == 23:
+                self.pin = 16
+            elif self.chn == 24:
+                self.pin = 18
+            elif self.chn == 27:
+                self.pin = 13
+
+            GPIO.setwarnings(False)
+            GPIO.setmode(GPIO.BOARD)
+            GPIO.setup(self.pin,GPIO.OUT)
+            self.GPIO_Out(self.pin,self.state)
+
+
+    def GPIO_Out(self,pin,state):
+        if state == 0:
+            GPIO.output(pin, GPIO.LOW)
+        else:
+            GPIO.output(pin, GPIO.HIGH)
+
+    def on(self):
+        self.state = 1
+        self.set_fan()
+
+
+    def off(self):
+        self.state = 0
+        self.set_fan()
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -115,8 +164,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.DAHat = hat_device("mcc152")
         self.DAHat.select_hat(0)
         self.DAHat.hat.dio_reset()
-        #self.DAHat.hat.dio_config_write_bit(0,DIOConfigItem.DIRECTION,0)
-        self.DAHat.hat.dio_output_write_bit(0,0)
+        self.DAHat.hat.dio_config_write_bit(7,DIOConfigItem.DIRECTION,0)
+        self.DAHat.hat.dio_output_write_port(0)
 
         self.forceOffset = 2.5
 
@@ -190,6 +239,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gain = 5
         self.InvOLS = 1
 
+
+        self.fanControlFlag = 0
+
         self.homeFolder = os.path.expanduser("~")
         self.forceFolder = self.homeFolder+"/force_curves"
         os.makedirs(self.forceFolder, exist_ok=True)
@@ -204,6 +256,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.pwm_ccw.stop()
         self.pwm_cw.stop()
+
+        self.fan = None
+        self.fanChn = 7
+        if self.fanControlFlag != 0:
+            self.fan = FanControl(self.DAHat.hat, chn=self.fanChn)
+            self.fan.on()
 
         self.createCentralWidget()
         self.setCentralWidget(self.centralFrame)
@@ -699,6 +757,7 @@ class MainWindow(QtWidgets.QMainWindow):
         channelLayout = QtWidgets.QGridLayout()
         advMotorLayout = QtWidgets.QGridLayout()
         advMeterLayout = QtWidgets.QGridLayout()
+        miscLayout = QtWidgets.QGridLayout()
 
         self.channelBox = QtWidgets.QGroupBox("Channels")
         self.channelBox.setLayout(channelLayout)
@@ -710,8 +769,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.advMeterBox = QtWidgets.QGroupBox("Advanced Meter Settings")
         self.advMeterBox.setLayout(advMeterLayout)
-        layout.addWidget(self.advMeterBox,3,1,2,1)
+        layout.addWidget(self.advMeterBox,3,1,1,1)
 
+        self.miscBox = QtWidgets.QGroupBox("Misc. Settings")
+        self.miscBox.setLayout(miscLayout)
+        layout.addWidget(self.miscBox,4,1,1,1)
 
         #Advanced Settings
         #self.motorSelectLabel = QtWidgets.QLabel("Output")
@@ -818,6 +880,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.GraphUpdateIntervalBox.valueChanged.connect(self.DoAdvancedSettings)
         self.GraphUpdateIntervalBox.setSuffix(" ms")
 
+        #Misc Settings
+        self.FanControlCheckBox = QtWidgets.QCheckBox("Enable Case Fan")
+        self.FanControlCheckBox.stateChanged.connect(self.DoAdvancedSettings)
+        self.FanControlCheckBox.setObjectName("FanControl")
+        self.FanControlCheckBox.setCheckState(self.fanControlFlag)
+        self.FanControlChnLabel = QtWidgets.QLabel("Chn.")
+        self.FanControlChnBox = QtWidgets.QComboBox()
+        self.FanControlChnBox.addItem("DIO7")
+        self.FanControlChnBox.addItem("GPIO22 (pin 15)")
+        self.FanControlChnBox.addItem("GPIO23 (pin 16)")
+        self.FanControlChnBox.addItem("GPIO24 (pin 18)")
+        self.FanControlChnBox.addItem("GPIO27 (pin 13)")
+        self.FanControlChnBox.setObjectName("FanControlChn")
+        self.FanControlChnBox.currentTextChanged.connect(self.DoAdvancedSettings)
+
         #channelLayout.addWidget(self.motorSelectLabel,1,1)
         #channelLayout.addWidget(self.motorSelectBox,1,2)
         #channelLayout.addWidget(self.directionChnLabel,2,1)
@@ -850,12 +927,22 @@ class MainWindow(QtWidgets.QMainWindow):
         advMeterLayout.addWidget(self.GraphUpdateIntervalLabel,2,1)
         advMeterLayout.addWidget(self.GraphUpdateIntervalBox,2,2)
 
+        miscLayout.addWidget(self.FanControlCheckBox,0,0,1,2)
+        miscLayout.addWidget(self.FanControlChnLabel,0,2)
+        miscLayout.addWidget(self.FanControlChnBox,0,3)
+
         self.ChangeMotorModeUI(self.outputMode)
 
     def DoAdvancedSettings(self):
         objectName = self.sender().objectName()
 
-        value = self.sender().value()
+        if objectName == "FanControl":
+            value = self.sender().checkState()
+        elif objectName == "FanControlChn":
+            pass
+        else:
+            value = self.sender().value()
+
 
         if objectName == "DirectionChn":
             self.directionChn = value
@@ -887,6 +974,38 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ADUpdateTimeMS = value
         elif objectName == "GraphInterval":
             self.graphUpdateTimeMS = value
+        elif objectName == "FanControl":
+            self.fanControlFlag = value
+            if self.fanControlFlag != 0:
+                self.fan = FanControl(self.DAHat.hat, chn=self.fanChn)
+                self.fan.on()
+            else:
+                self.fan.off()
+        elif objectName == "FanControlChn":
+            text = self.sender().currentText()
+            if "DIO7" in text:
+                self.fanChn = 7
+            elif "GPIO22" in text:
+                self.fanChn = 22
+            elif "GPIO23" in text:
+                self.fanChn = 23
+            elif "GPIO24" in text:
+                self.fanChn = 24
+            elif "GPIO27" in text:
+                self.fanChn = 24
+
+
+            if self.fan != None:
+                self.fan.off()
+
+            self.fan = FanControl(self.DAHat.hat, chn=self.fanChn)
+            if self.fanControlFlag != 0:
+                self.fan.on()
+            else:
+                self.fan.off()
+            pass
+
+
 
         self.SaveSettings()
 
@@ -1351,6 +1470,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.MotorStop()
         self.ReadADTimer.stop()
 
+        if self.fan != None:
+            self.fan.off()
+
         super(MainWindow, self).closeEvent(event)
 
     def MeterStopButtonFunction(self):
@@ -1408,7 +1530,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ampRect.set_width(10*a)
 
 
-        self.zpiRect.set_width(z)
+        self.zpiRect.set_width(2*z)
         if (z < 0):
             self.zpiRect.set_color(self.zpiColor1)
         else:
@@ -1725,6 +1847,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         settings_file.write(apprSound.to_bytes(8,byteorder='big'))
 
+        settings_file.write(self.fanControlFlag.to_bytes(8,byteorder='big'))
+
         settings_file.close()
 
         #self.LoadSettings()
@@ -1781,6 +1905,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
             apprSound = int.from_bytes(settings_file.read(8),byteorder='big')
 
+            self.fanControlFlag = int.from_bytes(settings_file.read(8),byteorder='big')
+            print(self.fanControlFlag)
             settings_file.close()
         except:
             print("Settings file 'settings.dat' not found; creating one for next time.")
