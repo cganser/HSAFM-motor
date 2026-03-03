@@ -240,7 +240,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.piezoConst = 18.5
         self.gain = 5
         self.InvOLS = 1
-
+        self.phaseShift = 0
 
         self.fanControlFlag = 0
 
@@ -1064,8 +1064,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def ForceTab(self):
         layout = QtWidgets.QGridLayout(self.forceTab)
 
+
+        self.phi = 0
+        self.InvUpX = np.array([0,200])
+        self.InvUpY = np.array([1,1])
+        self.InvDoX = np.array([0,200])
+        self.InvDoY = np.array([0.1,0.1])
+
+
         self.colorR = '#5555ff'
         self.colorA = '#ff55ff'
+        self.colorBlack = '#000000'
 
         self.ContForceTimer = QTimer()
         self.ContForceTimer.timeout.connect(self.DoForceCurve)
@@ -1080,6 +1089,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.AutoInvOLSButton = QtWidgets.QPushButton("Auto InvOLS", clicked=self.AutoInvOLSFunc)
         self.AutoInvOLSButton.setMinimumHeight(40)
 
+        self.PhaseDownButton = QtWidgets.QPushButton("↓", clicked=self.PhaseDownFunc)
+        self.PhaseDownButton.setMinimumHeight(40)
+
+        self.PhaseUpButton = QtWidgets.QPushButton("↑", clicked=self.PhaseUpFunc)
+        self.PhaseUpButton.setMinimumHeight(40)
 
         self.forceCanvas = FigureCanvas(Figure(figsize=(2,4)))
         self.forceAxes = self.forceCanvas.figure.subplots()
@@ -1145,10 +1159,41 @@ class MainWindow(QtWidgets.QMainWindow):
         #self.gainValue.setValue(self.gain)
         #self.gainValue.valueChanged.connect(self.DoForceSettings)
 
+        self.PhaseLabel = QtWidgets.QLabel("Phase: ")
+        self.PhaseValue = QtWidgets.QSpinBox()
+        self.PhaseValue.setMaximum(1000)
+        self.PhaseValue.setMinimum(-1000)
+        self.PhaseValue.setSingleStep(1)
+        self.PhaseValue.setValue(self.phaseShift)
+        self.PhaseValue.valueChanged.connect(self.DoPhaseShift)
+
         self.InvOLSLabel = QtWidgets.QLabel("InvOLS:")
         self.InvOLSValue = QtWidgets.QLineEdit()
         self.InvOLSValue.setReadOnly(1)
         self.InvOLSValue.setMaximumWidth(120)
+
+
+
+        self.InvOLSBox = QtWidgets.QGroupBox("Manual InvOLS")
+        iBoxLayout = QtWidgets.QGridLayout()
+        self.InvOLSBox.setLayout(iBoxLayout)
+
+        self.ManInvOLSBox = QtWidgets.QCheckBox("Enable manual InvOLS")
+        self.ManInvOLSBox.setChecked(False)
+        self.ManInvOLSBox.stateChanged.connect(self.EnableManInvOLS)
+
+
+        self.ManInvUpLabel = QtWidgets.QLabel("upper")
+        self.ManInvUpUpBut = QtWidgets.QPushButton("↑", clicked=self.InvUpUpFunc)
+        self.ManInvUpDoBut = QtWidgets.QPushButton("↓", clicked=self.InvUpDoFunc)
+
+        self.ManInvDoLabel = QtWidgets.QLabel("lower")
+        self.ManInvDoUpBut = QtWidgets.QPushButton("↑", clicked=self.InvDoUpFunc)
+        self.ManInvDoDoBut = QtWidgets.QPushButton("↓", clicked=self.InvDoDoFunc)
+
+        self.ManInvCalcBut = QtWidgets.QPushButton("Calculate InvOLS", clicked=self.CalcManInvOLS)
+
+        self.EnManInvCont(False)
 
         layout.addWidget(self.forceCanvas,0,0,7,3)
 
@@ -1168,13 +1213,160 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.forceMaxDistLabel,4,3)
         layout.addWidget(self.forceMaxDistValue,4,4)
 
-        layout.addWidget(self.InvOLSLabel,5,3)
-        layout.addWidget(self.InvOLSValue,5,4)
-        layout.addWidget(self.AutoInvOLSButton,5,5)
+        layout.addWidget(self.PhaseLabel,5,3)
+        layout.addWidget(self.PhaseValue,5,4)
 
-        layout.addWidget(self.DoForceButton,6,5)
-        layout.addWidget(self.DoContForceButton,6,3,1,2)
+        layout.addWidget(self.PhaseDownButton,5,5)
+        layout.addWidget(self.PhaseUpButton,5,6)
 
+        layout.addWidget(self.InvOLSLabel,6,3)
+        layout.addWidget(self.InvOLSValue,6,4)
+        layout.addWidget(self.AutoInvOLSButton,6,5,1,2)
+
+        layout.addWidget(self.DoForceButton,7,5,1,2)
+        layout.addWidget(self.DoContForceButton,7,3,1,2)
+
+        layout.addWidget(self.InvOLSBox,0,5,4,2)
+        #InvOLS Box START
+        iBoxLayout.addWidget(self.ManInvOLSBox,0,0,1,3)
+        iBoxLayout.addWidget(self.ManInvUpLabel,1,0)
+        iBoxLayout.addWidget(self.ManInvUpDoBut,1,1)
+        iBoxLayout.addWidget(self.ManInvUpUpBut,1,2)
+
+        iBoxLayout.addWidget(self.ManInvDoLabel,2,0)
+        iBoxLayout.addWidget(self.ManInvDoDoBut,2,1)
+        iBoxLayout.addWidget(self.ManInvDoUpBut,2,2)
+
+        iBoxLayout.addWidget(self.ManInvCalcBut,3,0,1,3)
+
+        #InvOLS Box END
+
+    def EnManInvCont(self, state):
+        self.ManInvUpLabel.setEnabled(state)
+        self.ManInvUpUpBut.setEnabled(state)
+        self.ManInvUpDoBut.setEnabled(state)
+        self.ManInvDoLabel.setEnabled(state)
+        self.ManInvDoUpBut.setEnabled(state)
+        self.ManInvDoDoBut.setEnabled(state)
+        self.ManInvCalcBut.setEnabled(state)
+
+
+    def EnableManInvOLS(self,state):
+        if state == Qt.Checked:
+            self.EnManInvCont(True)
+        else:
+            self.EnManInvCont(False)
+
+        self.UpdateInvBorders()
+
+    def UpdateInvBorders(self):
+        try:
+            xmin1 = self.ForceDistMApp.min()
+            xmin2 = self.ForceDistMRet.min()
+
+            xmax1 = self.ForceDistMApp.max()
+            xmax2 = self.ForceDistMRet.max()
+
+            xmin = min(xmin1,xmin2)
+            xmax = max(xmax1,xmax2)
+            self.InvUpX = [xmin,xmax]
+            self.InvDoX = [xmin,xmax]
+
+            self.DrawForceCurve()
+        except:
+            pass
+
+    def InvUpUpFunc(self):
+        self.InvUpY = self.InvUpY + 0.02
+        self.UpdateInvBorders()
+
+    def InvUpDoFunc(self):
+        self.InvUpY = self.InvUpY - 0.02
+        self.UpdateInvBorders()
+
+    def InvDoUpFunc(self):
+        self.InvDoY = self.InvDoY + 0.02
+        self.UpdateInvBorders()
+
+    def InvDoDoFunc(self):
+        self.InvDoY = self.InvDoY - 0.02
+        self.UpdateInvBorders()
+
+
+
+    def DrawForceCurve(self):
+        self.forceAxes.cla()
+        self.forceLine, = self.forceAxes.plot(self.ForceDistMApp2,self.ForceDeflDataApp2,self.colorA)
+        self.forceLine, = self.forceAxes.plot(self.ForceDistMRet2,self.ForceDeflDataRet2,self.colorR)
+        if (self.ManInvOLSBox.isChecked()):
+            self.forceLine, = self.forceAxes.plot(self.InvUpX,self.InvUpY,self.colorBlack,linestyle='dashed')
+            self.forceLine, = self.forceAxes.plot(self.InvDoX,self.InvDoY,self.colorBlack,linestyle='dotted')
+        self.forceCanvas.draw()
+
+
+    def PhaseDownFunc(self):
+        value = self.PhaseValue.value()
+        value = value-1
+        self.PhaseValue.setValue(value)
+
+    def PhaseUpFunc(self):
+        value = self.PhaseValue.value()
+        value = value+1
+        self.PhaseValue.setValue(value)
+
+
+    def DoPhaseShift(self):
+        self.phaseShift = self.PhaseValue.value()
+
+        phi = int(self.phaseShift)
+
+
+
+        N1 = len(self.ForceDistMApp)
+        N2 = len(self.ForceDistMRet)
+
+        fullDist = np.concatenate((self.ForceDistMApp,self.ForceDistMRet))
+        fullDefl = np.concatenate((self.ForceDeflDataApp,self.ForceDeflDataRet))
+
+        if (self.phaseShift >= 0):
+            shiftDist = fullDist[2*phi:N1+N2]
+            shiftDefl = fullDefl[0:N1+N2-2*phi]
+
+            newN = int(len(shiftDist)/2)
+
+            self.ForceDistMApp2 = fullDist[0:newN-phi]
+            self.ForceDeflDataApp2 = fullDefl[phi:newN]
+            self.ForceDistMRet2 = fullDist[newN-phi:2*newN-2*phi]
+            self.ForceDeflDataRet2 = fullDefl[newN:2*newN-phi]
+        else:
+            shiftDist = fullDist[0:N1+N2+2*phi]
+            shiftDefl = fullDefl[-2*phi:N1+N2]
+
+            newN = int(len(shiftDist)/2)
+
+            self.ForceDistMApp2 = fullDist[-phi:newN]
+            self.ForceDeflDataApp2 = fullDefl[0:newN+phi]
+            self.ForceDistMRet2 = fullDist[newN:2*newN+phi]
+            self.ForceDeflDataRet2 = fullDefl[newN+phi:2*newN+2*phi]
+
+        self.phi = phi
+
+
+        #if (self.phaseShift >= 0):
+        #    self.ForceDistMApp2 = self.ForceDistMApp[phi:N1]
+        #    self.ForceDeflDataApp2 = np.concatenate((self.ForceDeflDataApp[phi:N1-phi],self.ForceDeflDataRet[0:phi]))
+        #
+        #    self.ForceDistMRet2 = self.ForceDistMRet[phi:N2]
+        #    self.ForceDeflDataRet2 = np.concatenate((self.ForceDeflDataApp[N1-phi:N1],self.ForceDeflDataRet[phi:N2-self.phaseShift]))
+        #else:
+        #    self.ForceDistMApp2 = self.ForceDistMApp[0:N1+self.phaseShift]
+        #    self.ForceDeflDataApp2 = self.ForceDeflDataApp[-self.phaseShift:N1]
+
+        #    self.ForceDistMRet2 = self.ForceDistMRet[0:N2+self.phaseShift]
+        #    self.ForceDeflDataRet2 = self.ForceDeflDataRet[-self.phaseShift:N2]
+
+
+        self.DrawForceCurve()
 
     def FindPlateauEnd(self,data, th=-0.02):
         dy = np.diff(data)
@@ -1187,6 +1379,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
         return border
 
+    def FindPointFromValue(self, data, value, direction, tol=0):
+        L = len(data)
+
+        if tol == 0:
+            delta = 4*(np.max(data)-np.min(data))/L
+        else:
+            delta = tol
+
+        if direction == 1:
+            Res = L
+            for i in range(0,L):
+                if ((value > data[i] - delta) and (value < delta + data[i])):
+                    Res = i
+                    break
+        elif direction == -1:
+            for j in range(0,L):
+                i = L-1-j
+                if ((value > data[i]- delta) and (value < delta + data[i])):
+                    Res = i
+                    break
+
+        return Res
 
     def DoZeroEstimate(self):
         N = len(self.ForceDistMRet)
@@ -1210,15 +1424,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ForceDistMRet -= self.x0
         self.ForceDistMApp -= self.x0
 
+        self.ForceDistMApp2 = self.ForceDistMApp
+        self.ForceDeflDataApp2 = self.ForceDeflDataApp
+
+        self.ForceDistMRet2 = self.ForceDistMRet
+        self.ForceDeflDataRet2 = self.ForceDeflDataRet
+
+        self.DrawForceCurve()
+
 
     def AutoInvOLSFunc(self):
-        #self.ForceDistMRet
-        #self.ForceDeflDataRet
-        fit_start = self.FindPlateauEnd(self.ForceDeflDataRet,th=-0.04)
+        fit_start = self.FindPlateauEnd(self.ForceDeflDataRet,th=-0.03)
 
-        N_fit = int(0.75*self.N0)
-        x = np.array(self.ForceDistMRet[fit_start:N_fit])
-        y = np.array(self.ForceDeflDataRet[fit_start:N_fit])
+        N_fit = int(0.95*self.N0 + self.phi)
+        x = np.array(self.ForceDistMRet2[fit_start:N_fit])
+        y = np.array(self.ForceDeflDataRet2[fit_start:N_fit])
 
         C,y_fit = self.DoPolyFit(x,y,1)
         self.InvOLS = -1/C[0,0]
@@ -1226,6 +1446,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.forceCanvas.draw()
         self.InvOLSValue.setText("{InvOLS:.1f} nm/V".format(InvOLS = self.InvOLS))
 
+
+    def CalcManInvOLS(self):
+
+        y1 = self.InvUpY[0]
+        y2 = self.InvDoY[0]
+
+        i1 = self.FindPointFromValue(self.ForceDeflDataRet2, y1, 1)
+        i2 = self.FindPointFromValue(self.ForceDeflDataRet2, y2, 1)
+
+        x = np.array(self.ForceDistMRet2[i1:i2])
+        y = np.array(self.ForceDeflDataRet2[i1:i2])
+
+        C,y_fit = self.DoPolyFit(x,y,1)
+
+        self.InvOLS = -1/C[0,0]
+
+        self.forceLine, = self.forceAxes.plot(x,y_fit,'k')
+        self.forceCanvas.draw()
+        self.InvOLSValue.setText("{InvOLS:.1f} nm/V".format(InvOLS = self.InvOLS))
 
 
     def DoPolyFit(self,x,y,deg):
@@ -1263,7 +1502,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ReadADTimer.stop()
         self.DoForceCurve()
         self.ReadADTimer.start(self.ADUpdateTimeMS)
-
+        #self.LoadForceCurve()
+        self.DoZeroEstimate()
 
     def DoForceCurve(self):
 
@@ -1275,8 +1515,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ForceDistDataRet = array.array('f',[])
 
         self.time_step = 0
-        self.ForceDefl_save = np.array([], dtype=np.int16)
-        self.ForceDist_save = np.array([], dtype=np.int16)
+        ForceDefl_save1 = array.array('i', [])
+        ForceDist_save1 = array.array('i', [])
+        ForceDefl_save2 = array.array('i', [])
+        ForceDist_save2 = array.array('i', [])
+        ForceDefl_save3 = array.array('i', [])
+        ForceDist_save3 = array.array('i', [])
+        ForceDefl_save4 = array.array('i', [])
+        ForceDist_save4 = array.array('i', [])
 
 
         dV = V/N
@@ -1290,8 +1536,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
             dummyDefl = self.ADHat.hat.a_in_read(self.defChn,options=OptionFlags.NOSCALEDATA)
             dummyDist = self.ADHat.hat.a_in_read(self.disChn,options=OptionFlags.NOSCALEDATA)
-            self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
-            self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+            #self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
+            #self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+            ForceDefl_save1.append(np.int16(dummyDefl))
+            ForceDist_save1.append(np.int16(dummyDist))
+
 
         time2 = time.time()
 
@@ -1305,8 +1554,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ForceDeflDataApp.append(2*self.ADHat.maxV*(dummyDefl/self.ADHat.maxADC)-self.ADHat.maxV)
             self.ForceDistDataApp.append(2*self.ADHat.maxV*(dummyDist/self.ADHat.maxADC)-self.ADHat.maxV)
 
-            self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
-            self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+            #self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
+            #self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+            ForceDefl_save2.append(np.int16(dummyDefl))
+            ForceDist_save2.append(np.int16(dummyDist))
+
 
         time3 = time.time()
 
@@ -1319,8 +1571,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ForceDeflDataRet.append(2*self.ADHat.maxV*(dummyDefl/self.ADHat.maxADC)-self.ADHat.maxV)
             self.ForceDistDataRet.append(2*self.ADHat.maxV*(dummyDist/self.ADHat.maxADC)-self.ADHat.maxV)
 
-            self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
-            self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+            #self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
+            #self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+            ForceDefl_save3.append(np.int16(dummyDefl))
+            ForceDist_save3.append(np.int16(dummyDist))
+
 
         time4 = time.time()
 
@@ -1330,9 +1585,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
             dummyDefl = self.ADHat.hat.a_in_read(self.defChn,options=OptionFlags.NOSCALEDATA)
             dummyDist = self.ADHat.hat.a_in_read(self.disChn,options=OptionFlags.NOSCALEDATA)
-            self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
-            self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+            #self.ForceDefl_save = np.append(self.ForceDefl_save, dummyDefl)
+            #self.ForceDist_save = np.append(self.ForceDist_save, dummyDist)
+            ForceDefl_save4.append(np.int16(dummyDefl))
+            ForceDist_save4.append(np.int16(dummyDist))
 
+
+        self.ForceDefl_save = np.concatenate([ForceDefl_save1, ForceDefl_save2, ForceDefl_save3, ForceDefl_save4],dtype='int16')
+        self.ForceDist_save = np.concatenate([ForceDist_save1, ForceDist_save2, ForceDist_save3, ForceDist_save4],dtype='int16')
 
         stop_time = time.time()
         time_diff = stop_time-start_time
@@ -1351,10 +1611,20 @@ class MainWindow(QtWidgets.QMainWindow):
         #self.forceDistMRet = self.ForceDeflDataApp*self.piezoConst*self.gain
         self.DoZeroEstimate()
 
-        self.forceAxes.cla()
-        self.forceLine, = self.forceAxes.plot(self.ForceDistMApp,self.ForceDeflDataApp,self.colorA)
-        self.forceLine, = self.forceAxes.plot(self.ForceDistMRet,self.ForceDeflDataRet,self.colorR)
-        self.forceCanvas.draw()
+
+        self.ForceDistMApp2 = self.ForceDistMApp
+        self.ForceDeflDataApp2 = self.ForceDeflDataApp
+
+        self.ForceDistMRet2 = self.ForceDistMRet
+        self.ForceDeflDataRet2 = self.ForceDeflDataRet
+
+
+        #self.forceAxes.cla()
+        #self.forceLine, = self.forceAxes.plot(self.ForceDistMApp,self.ForceDeflDataApp,self.colorA)
+        #self.forceLine, = self.forceAxes.plot(self.ForceDistMRet,self.ForceDeflDataRet,self.colorR)
+        #self.forceCanvas.draw()
+        #self.DrawForceCurve()
+        self.UpdateInvBorders()
 
         self.SaveForceCurve()
         #self.LoadForceCurve()
@@ -1380,6 +1650,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ForceY = 0
 
         fileN = 0
+
 
         today = datetime.now()
         todayFormat = today.strftime("%Y%m%d")
@@ -1424,7 +1695,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #print(len(self.ForceDist_save))
 
     def LoadForceCurve(self):
-        name = "test.dfc"
+        name = "test3.dfc"
 
         f = open(name, 'rb')
 
@@ -1447,11 +1718,45 @@ class MainWindow(QtWidgets.QMainWindow):
         ForceX = struct.unpack('i', f.read(4))[0]
         ForceY = struct.unpack('i', f.read(4))[0]
 
+        time_interval = 1e-9*time_interval
+
+
+        retractP = int((sample_cnt - int((apprT + retrT + holdT)/time_interval))/2)
+
         DataA = np.array([])
         DataB = np.array([])
 
-        DataA = np.append(DataA, np.fromfile(f,dtype="int16", count = sample_cnt))
-        DataB = np.append(DataB, np.fromfile(f,dtype="int16", count = sample_cnt))
+
+        DataA = rangeA*np.append(DataA, np.fromfile(f,dtype="int16", count = sample_cnt))/maxADC - rangeA/2
+        DataB = DriverG*QCtrlG*PiezoZ*(rangeB*np.append(DataB, np.fromfile(f,dtype="int16", count = sample_cnt))/maxADC - rangeB/2)
+
+        self.ForceDistMApp = np.array([])
+        self.ForceDistDeflDataApp = np.array([])
+
+        self.ForceMRet = np.array([])
+        self.ForceDeflDataRet = np.array([])
+
+
+        self.ForceDistMApp = DataB[retractP:int(sample_cnt/2)]
+        self.ForceDeflDataApp = DataA[retractP:int(sample_cnt/2)]
+
+        self.ForceDistMRet = DataB[int(sample_cnt/2):sample_cnt-retractP]
+        self.ForceDeflDataRet = DataA[int(sample_cnt/2):sample_cnt-retractP]
+
+
+        self.ForceDistMApp2 = self.ForceDistMApp
+        self.ForceDeflDataApp2 = self.ForceDeflDataApp
+
+        self.ForceDistMRet2 = self.ForceDistMRet
+        self.ForceDeflDataRet2 = self.ForceDeflDataRet
+
+        self.DrawForceCurve()
+
+
+        #self.forceAxes.cla()
+        #self.forceLine, = self.forceAxes.plot(self.ForceDistMApp,self.ForceDeflDataApp,self.colorA)
+        #self.forceLine, = self.forceAxes.plot(self.ForceDistMRet,self.ForceDeflDataRet,self.colorR)
+        #self.forceCanvas.draw()
 
         f.close()
 
