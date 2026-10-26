@@ -4,4 +4,4 @@
 
 - [Read the assembly instructions](documentation/assembly-instructions.md)
 - [Browse assembly photos and diagrams](documentation/assembly-images/)
-- 3D printable STEP and FreeCAD files: not yet included
+- [Browse 3D printable models and parts list](documentation/3D_printables/README.md)
