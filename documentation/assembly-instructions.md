@@ -56,7 +56,7 @@ A driver that accepts pulse signals from 3 V to 5 V should work. The setup uses 
 
    *Figure 7. D-sub connector pin assignment.*
 
-8. Connect the PWM outputs: Raspberry Pi GPIO19 (physical pin 12) to D-sub position 1, and GPIO18 (physical pin 35) to D-sub position 5. The source instructions also specify +5 V and GND to D-sub positions 14 and 15, respectively.  **Verify the intended D-sub wiring before connecting power.** Raspberry Pi 5 +5 V is available on pins 2 and 4. GND is available on pins 6, 9, 14, 20, 25, 30, 34, and 39. Confirm pin assignments against official Raspberry Pi documentation.
+8. Connect the PWM outputs: Raspberry Pi GPIO18 (physical pin 12, CW / retract) to D-sub position 1, and GPIO19 (physical pin 35, CCW / approach) to D-sub position 5. The source instructions also specify +5 V and GND to D-sub positions 14 and 15, respectively.  **Verify the intended D-sub wiring before connecting power.** Raspberry Pi 5 +5 V is available on pins 2 and 4. GND is available on pins 6, 9, 14, 20, 25, 30, 34, and 39. Confirm pin assignments against official Raspberry Pi documentation.
 9. Connect the buzzer to Raspberry Pi pin 11 (GPIO17) and any GND pin.
 10. Connect a switch to the Raspberry Pi so the system can be switched on and off from the case. The guide assumes a Cherry MX style keyboard switch, but any switch that is normally off and on only while pressed will work. The 3D printed parts include an optional switch cap.
 

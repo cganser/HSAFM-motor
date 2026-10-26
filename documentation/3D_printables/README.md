@@ -23,8 +23,6 @@ This directory contains the FreeCAD source models and STEP exports. Use the STEP
 
 ## Recommended slicer settings
 
-The provided parts list recommends these settings:
-
 - Wall loops: 3
 - Sparse infill density: 15%
 - Infill pattern: Rectilinear
@@ -33,10 +31,3 @@ The provided parts list recommends these settings:
 - Support type: Tree (auto)
 
 The parts list specifically emphasizes enabling supports for `Back_shell_txt_v2_1-Body.step`.
-
-## Models not listed in the supplied parts list
-
-These model files are present in the repository but are not included in the parts list:
-
-- [IC_case_base_V3-Body.step](STEP/IC_case_base_V3-Body.step) · [FreeCAD](FreeCAD/IC_case_base_V3.FCStd)
-- [IC_case_top_V3-Body.step](STEP/IC_case_top_V3-Body.step) · [FreeCAD](FreeCAD/IC_case_top_V3.FCStd)
