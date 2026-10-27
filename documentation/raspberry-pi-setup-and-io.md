@@ -12,7 +12,7 @@ These steps are for a fresh Raspberry Pi OS installation. They install the proje
 
    ```bash
    sudo apt update
-   sudo apt install git python3-venv python3-rpi.gpio
+   sudo apt install git python3-venv python3-rpi.gpio python3-pyqt5 python3-pyqt5.qtsvg
    ```
 
 2. Clone this repository and create its virtual environment:
@@ -51,6 +51,8 @@ These steps are for a fresh Raspberry Pi OS installation. They install the proje
    ```
 
    The launcher automatically uses `~/.venv` and sets the repository as the working directory so `settings.dat` is found. The Raspberry Pi 5 [hardware PWM overlay](#raspberry-pi-5-hardware-pwm) must be configured and the Pi rebooted before controlling the motor.
+
+   The Qt5 SVG bindings are supplied by the OS package `python3-pyqt5.qtsvg`; the project uses the OS PyQt5 modules so they match Raspberry Pi OS's Qt libraries. `PyQt5` is therefore intentionally not installed by pip from `requirements.txt`.
 
 If you already cloned either repository, skip its `git clone` command and `cd` into the existing directory. To update the HSAFM application later, run `cd ~/HSAFM-motor && git pull`; rerun `./setup_venv.sh` if its Python requirements change.
 
@@ -119,7 +121,15 @@ daqhats_list_boards
 
 The software in this repository searches for one MCC118 and one MCC152 by board type and selects the first matching board. It initializes both HATs when the application starts. Although the main purchase list describes the MCC152 as conditional on force-curve use, the current source still requires the MCC152 to be present to launch.
 
-The application also imports `RPi.GPIO`, `rpi_hardware_pwm`, `PyQt5`, `numpy`, and `matplotlib`. Run `./setup_venv.sh` from the repository to create `.venv` and install the packages from `requirements.txt`, then launch with `./run_motor_control.sh`. The launcher uses the `.venv` interpreter regardless of the source file's legacy shebang path.
+The application also imports `RPi.GPIO`, `rpi_hardware_pwm`, `PyQt5`, `numpy`, and `matplotlib`. Install `RPi.GPIO` and PyQt5, including the QtSvg module, with `apt` as shown in the install steps. Run `./setup_venv.sh` from the repository to create `~/.venv` and install the remaining packages from `requirements.txt`, then launch with `./run_motor_control.sh`. The launcher uses the selected venv interpreter regardless of the source file's legacy shebang path.
+
+If an existing environment reports `ImportError: cannot import name QtSvg from PyQt5`, install the OS packages, remove pip's PyQt5 copy from the venv if present, then verify the QtSvg import:
+
+```bash
+sudo apt install python3-pyqt5 python3-pyqt5.qtsvg
+~/.venv/bin/pip uninstall -y PyQt5 PyQt5-Qt5 PyQt5-sip
+~/.venv/bin/python -c 'from PyQt5 import QtSvg; print("QtSvg available")'
+```
 
 For board-specific capabilities and electrical limits, see the official [MCC DAQ HAT hardware overview](https://files.digilent.com/manuals/DAQ-HAT/overview.html) and [MCC152 product page](https://digilent.com/shop/mcc-152-voltage-output-and-dio-daq-hat-for-raspberry-pi/).
 
