@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-venv_dir="${VENV_DIR:-"$repo_root/.venv"}"
+venv_dir="${VENV_DIR:-"$HOME/.venv"}"
 
 if ! command -v python3 >/dev/null 2>&1; then
     echo "python3 is required. Install Python 3 and python3-venv, then try again." >&2

@@ -6,7 +6,7 @@ This guide describes the Raspberry Pi 5 PWM setup used by `motor_control.py`, th
 
 ## Install and launch the software
 
-These steps are for a fresh Raspberry Pi OS installation. They install the project, create its virtual environment, build and install Digilent's DAQ HAT library, and launch the application. The examples put the virtual environment at `~/.venv`. The setup and launcher scripts accept `VENV_DIR` so both use that location. The environment uses `--system-site-packages` so it can also import system-installed `RPi.GPIO`.
+These steps are for a fresh Raspberry Pi OS installation. They install the project, create its virtual environment, build and install Digilent's DAQ HAT library, and launch the application. Both scripts automatically use `~/.venv`; you can optionally set `VENV_DIR` to use a different location. The environment uses `--system-site-packages` so it can also import system-installed `RPi.GPIO`.
 
 1. Install Git, Python's virtual environment support, and the GPIO package:
 
@@ -21,7 +21,7 @@ These steps are for a fresh Raspberry Pi OS installation. They install the proje
    cd ~
    git clone https://github.com/cganser/HSAFM-motor.git
    cd ~/HSAFM-motor
-   VENV_DIR="$HOME/.venv" ./setup_venv.sh
+   ./setup_venv.sh
    ```
 
 3. Clone, build, and install the Digilent DAQ HAT library. When prompted by the installer, choose Python 3 support:
@@ -47,10 +47,10 @@ These steps are for a fresh Raspberry Pi OS installation. They install the proje
 
    ```bash
    cd ~/HSAFM-motor
-   VENV_DIR="$HOME/.venv" ./run_motor_control.sh
+   ./run_motor_control.sh
    ```
 
-   The launcher runs the app with the selected virtual environment and sets the repository as the working directory so `settings.dat` is found. The Raspberry Pi 5 [hardware PWM overlay](#raspberry-pi-5-hardware-pwm) must be configured and the Pi rebooted before controlling the motor.
+   The launcher automatically uses `~/.venv` and sets the repository as the working directory so `settings.dat` is found. The Raspberry Pi 5 [hardware PWM overlay](#raspberry-pi-5-hardware-pwm) must be configured and the Pi rebooted before controlling the motor.
 
 If you already cloned either repository, skip its `git clone` command and `cd` into the existing directory. To update the HSAFM application later, run `cd ~/HSAFM-motor && git pull`; rerun `./setup_venv.sh` if its Python requirements change.
 
