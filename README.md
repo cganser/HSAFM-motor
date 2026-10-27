@@ -41,6 +41,10 @@ This repository contains the software and build documentation for a Raspberry Pi
 
 > **Note:** Wires are not included in this parts list. Refer to the [assembly instructions](documentation/assembly-instructions.md) for wiring details.
 
+## Run on Raspberry Pi 5
+
+Follow the [step-by-step Raspberry Pi installation instructions](documentation/raspberry-pi-setup-and-io.md#install-and-launch-the-software) to clone the repository, create the virtual environment, install the Digilent DAQ HAT library, and launch the application.
+
 ## License
 
 Software is licensed under GPL-3.0-or-later, hardware design files under

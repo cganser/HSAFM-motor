@@ -4,6 +4,66 @@ This guide describes the Raspberry Pi 5 PWM setup used by `motor_control.py`, th
 
 > **Wiring check:** CW / retract is assigned to D-sub position 1 and GPIO18 (physical pin 12); CCW / approach is assigned to D-sub position 5 and GPIO19 (physical pin 35). Confirm the connector mating-face orientation and the actual wiring before applying power.
 
+## Install and launch the software
+
+These steps are for a fresh Raspberry Pi OS installation. They install the project, create its virtual environment, build and install Digilent's DAQ HAT library, and launch the application. Both scripts automatically use `~/.venv`; you can optionally set `VENV_DIR` to use a different location. The environment uses `--system-site-packages` so it can also import system-installed `RPi.GPIO`.
+
+1. Install Git, Python's virtual environment support, and the GPIO package:
+
+   ```bash
+   sudo apt update
+   sudo apt install git python3-venv python3-rpi.gpio python3-pyqt5 python3-pyqt5.qtsvg
+   ```
+
+2. Clone this repository and create its virtual environment:
+
+   ```bash
+   cd ~
+   git clone https://github.com/cganser/HSAFM-motor.git
+   cd ~/HSAFM-motor
+   ./setup_venv.sh
+   ```
+
+3. Clone, build, and install the Digilent DAQ HAT library. When prompted by the installer, choose Python 3 support:
+
+   ```bash
+   cd ~
+   git clone https://github.com/mccdaq/daqhats.git
+   cd ~/daqhats
+   sudo ./install.sh
+   ```
+
+   The installer builds and installs the native library and detects the connected HAT EEPROMs, following Digilent's [official installation instructions](https://files.digilent.com/manuals/DAQ-HAT/install.html).
+
+   Install the `daqhats` Python module into the virtual environment created in step 2:
+
+   ```bash
+   ~/.venv/bin/pip install daqhats
+   ```
+
+   This is separate from `sudo ./install.sh`: the installer builds the native DAQ HAT library, while this command installs the Python module into the app's virtual environment. Digilent also documents installing `daqhats` with the selected venv's `bin/pip` in its [library repository instructions](https://github.com/mccdaq/daqhats#install-instructions).
+
+4. Return to the project and start the application:
+
+   ```bash
+   cd ~/HSAFM-motor
+   ./run_motor_control.sh
+   ```
+
+   The launcher automatically uses `~/.venv` and sets the repository as the working directory so `settings.dat` is found. The Raspberry Pi 5 [hardware PWM overlay](#raspberry-pi-5-hardware-pwm) must be configured and the Pi rebooted before controlling the motor.
+
+   To create a desktop shortcut from the repository folder, run:
+
+   ```bash
+   ./create_desktop_launcher.sh
+   ```
+
+   The script writes `~/Desktop/HSAFM-Motor.desktop` using the repository's actual path. If the desktop asks, right-click the new shortcut and choose **Allow Launching** or **Trust and Launch**.
+
+   The Qt5 SVG bindings are supplied by the OS package `python3-pyqt5.qtsvg`; the project uses the OS PyQt5 modules so they match Raspberry Pi OS's Qt libraries. `PyQt5` is therefore intentionally not installed by pip from `requirements.txt`.
+
+If you already cloned either repository, skip its `git clone` command and `cd` into the existing directory. To update the HSAFM application later, run `cd ~/HSAFM-motor && git pull`; rerun `./setup_venv.sh` if its Python requirements change.
+
 ## Raspberry Pi 5 hardware PWM
 
 The application uses the Pi's hardware PWM outputs for the motor pulse signals. Software PWM is not suitable for the fast motor pulse rates used here.
@@ -52,14 +112,14 @@ The vendor installation flow builds the native library and tools, detects the HA
 
 ```bash
 sudo apt update
-sudo apt install git
+sudo apt install git python3-venv python3-rpi.gpio
 cd ~
 git clone https://github.com/mccdaq/daqhats.git
 cd ~/daqhats
 sudo ./install.sh
 ```
 
-When prompted, choose Python 3 support. The current MCC documentation also describes installing the `daqhats` Python package in a virtual environment; install it in the same environment used for `motor_control.py`.
+When prompted, choose Python 3 support. The project setup script creates its virtual environment with system site packages enabled, so it can use the vendor's system-installed `daqhats` bindings and system-installed `RPi.GPIO`. Install those hardware libraries for the system Python, then use the project scripts to install the remaining Python packages and launch the application.
 
 Check that both boards are detected:
 
@@ -69,7 +129,15 @@ daqhats_list_boards
 
 The software in this repository searches for one MCC118 and one MCC152 by board type and selects the first matching board. It initializes both HATs when the application starts. Although the main purchase list describes the MCC152 as conditional on force-curve use, the current source still requires the MCC152 to be present to launch.
 
-The application also imports `RPi.GPIO`, `rpi_hardware_pwm`, `PyQt5`, `numpy`, and `matplotlib`. Install these application dependencies in the Python environment used to run it. The source file's shebang points to `/home/afm/python/daq_venv/bin/python`; if your Pi uses a different account or environment path, launch it with the correct environment's Python interpreter.
+The application also imports `RPi.GPIO`, `rpi_hardware_pwm`, `PyQt5`, `numpy`, and `matplotlib`. Install `RPi.GPIO` and PyQt5, including the QtSvg module, with `apt` as shown in the install steps. Run `./setup_venv.sh` from the repository to create `~/.venv` and install the remaining packages from `requirements.txt`, then launch with `./run_motor_control.sh`. The launcher uses the selected venv interpreter regardless of the source file's legacy shebang path.
+
+If an existing environment reports `ImportError: cannot import name QtSvg from PyQt5`, install the OS packages, remove pip's PyQt5 copy from the venv if present, then verify the QtSvg import:
+
+```bash
+sudo apt install python3-pyqt5 python3-pyqt5.qtsvg
+~/.venv/bin/pip uninstall -y PyQt5 PyQt5-Qt5 PyQt5-sip
+~/.venv/bin/python -c 'from PyQt5 import QtSvg; print("QtSvg available")'
+```
 
 For board-specific capabilities and electrical limits, see the official [MCC DAQ HAT hardware overview](https://files.digilent.com/manuals/DAQ-HAT/overview.html) and [MCC152 product page](https://digilent.com/shop/mcc-152-voltage-output-and-dio-daq-hat-for-raspberry-pi/).
 
