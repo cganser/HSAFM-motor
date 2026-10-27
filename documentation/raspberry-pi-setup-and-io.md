@@ -52,14 +52,14 @@ The vendor installation flow builds the native library and tools, detects the HA
 
 ```bash
 sudo apt update
-sudo apt install git
+sudo apt install git python3-venv python3-rpi.gpio
 cd ~
 git clone https://github.com/mccdaq/daqhats.git
 cd ~/daqhats
 sudo ./install.sh
 ```
 
-When prompted, choose Python 3 support. The current MCC documentation also describes installing the `daqhats` Python package in a virtual environment; install it in the same environment used for `motor_control.py`.
+When prompted, choose Python 3 support. The project setup script creates its virtual environment with system site packages enabled, so it can use the vendor's system-installed `daqhats` bindings and system-installed `RPi.GPIO`. Install those hardware libraries for the system Python, then use the project scripts to install the remaining Python packages and launch the application.
 
 Check that both boards are detected:
 
@@ -69,7 +69,7 @@ daqhats_list_boards
 
 The software in this repository searches for one MCC118 and one MCC152 by board type and selects the first matching board. It initializes both HATs when the application starts. Although the main purchase list describes the MCC152 as conditional on force-curve use, the current source still requires the MCC152 to be present to launch.
 
-The application also imports `RPi.GPIO`, `rpi_hardware_pwm`, `PyQt5`, `numpy`, and `matplotlib`. Install these application dependencies in the Python environment used to run it. The source file's shebang points to `/home/afm/python/daq_venv/bin/python`; if your Pi uses a different account or environment path, launch it with the correct environment's Python interpreter.
+The application also imports `RPi.GPIO`, `rpi_hardware_pwm`, `PyQt5`, `numpy`, and `matplotlib`. Run `./scripts/setup_venv.sh` from the repository to create `.venv` and install the packages from `requirements.txt`, then launch with `./scripts/run_motor_control.sh`. The launcher uses the `.venv` interpreter regardless of the source file's legacy shebang path.
 
 For board-specific capabilities and electrical limits, see the official [MCC DAQ HAT hardware overview](https://files.digilent.com/manuals/DAQ-HAT/overview.html) and [MCC152 product page](https://digilent.com/shop/mcc-152-voltage-output-and-dio-daq-hat-for-raspberry-pi/).
 
