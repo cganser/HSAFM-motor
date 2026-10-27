@@ -40,3 +40,9 @@ This repository contains the software and build documentation for a Raspberry Pi
 - 1 × [case fan](https://jp.rs-online.com/web/p/axial-fans/1442032) (recommended, but optional) — 5 V DC axial fan, 30 × 30 × 10.2 mm, 80 mA, 9,000 rpm.
 
 > **Note:** Wires are not included in this parts list. Refer to the [assembly instructions](documentation/assembly-instructions.md) for wiring details.
+
+## License
+
+Software is licensed under GPL-3.0-or-later, hardware design files under
+CERN-OHL-S-2.0, and project documentation and media under CC BY 4.0. See
+[LICENSE](LICENSE) and [LICENSES.md](LICENSES.md) for details.
