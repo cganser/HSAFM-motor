@@ -43,14 +43,7 @@ This repository contains the software and build documentation for a Raspberry Pi
 
 ## Run on Raspberry Pi 5
 
-Install the Digilent DAQ HAT library and `RPi.GPIO` using the [Raspberry Pi setup guide](documentation/raspberry-pi-setup-and-io.md). The setup script creates a virtual environment that can also see these system-installed hardware libraries, then installs the Python packages listed in `requirements.txt`.
-
-```bash
-./setup_venv.sh
-./run_motor_control.sh
-```
-
-The launcher runs `motor_control.py` with the project's virtual environment and sets the repository as the working directory, so `settings.dat` is found consistently.
+Follow the [step-by-step Raspberry Pi installation instructions](documentation/raspberry-pi-setup-and-io.md#install-and-launch-the-software) to clone the repository, create the virtual environment, install the Digilent DAQ HAT library, and launch the application.
 
 ## License
 

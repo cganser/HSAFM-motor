@@ -4,6 +4,48 @@ This guide describes the Raspberry Pi 5 PWM setup used by `motor_control.py`, th
 
 > **Wiring check:** CW / retract is assigned to D-sub position 1 and GPIO18 (physical pin 12); CCW / approach is assigned to D-sub position 5 and GPIO19 (physical pin 35). Confirm the connector mating-face orientation and the actual wiring before applying power.
 
+## Install and launch the software
+
+These steps are for a fresh Raspberry Pi OS installation. They install the project, create its virtual environment, build and install Digilent's DAQ HAT library, and launch the application. The DAQ HAT installer installs its Python bindings for the system Python; the project environment uses `--system-site-packages` so it can import those bindings and `RPi.GPIO`.
+
+1. Install Git, Python's virtual environment support, and the GPIO package:
+
+   ```bash
+   sudo apt update
+   sudo apt install git python3-venv python3-rpi.gpio
+   ```
+
+2. Clone this repository and create its virtual environment:
+
+   ```bash
+   cd ~
+   git clone https://github.com/cganser/HSAFM-motor.git
+   cd ~/HSAFM-motor
+   ./setup_venv.sh
+   ```
+
+3. Clone, build, and install the Digilent DAQ HAT library. When prompted by the installer, choose Python 3 support:
+
+   ```bash
+   cd ~
+   git clone https://github.com/mccdaq/daqhats.git
+   cd ~/daqhats
+   sudo ./install.sh
+   ```
+
+   The installer builds and installs the native library and Python bindings, and detects the connected HAT EEPROMs, following Digilent's [official installation instructions](https://files.digilent.com/manuals/DAQ-HAT/install.html).
+
+4. Return to the project and start the application:
+
+   ```bash
+   cd ~/HSAFM-motor
+   ./run_motor_control.sh
+   ```
+
+   The launcher runs the app with the project's `.venv` and sets the repository as the working directory so `settings.dat` is found. The Raspberry Pi 5 [hardware PWM overlay](#raspberry-pi-5-hardware-pwm) must be configured and the Pi rebooted before controlling the motor.
+
+If you already cloned either repository, skip its `git clone` command and `cd` into the existing directory. To update the HSAFM application later, run `cd ~/HSAFM-motor && git pull`; rerun `./setup_venv.sh` if its Python requirements change.
+
 ## Raspberry Pi 5 hardware PWM
 
 The application uses the Pi's hardware PWM outputs for the motor pulse signals. Software PWM is not suitable for the fast motor pulse rates used here.
