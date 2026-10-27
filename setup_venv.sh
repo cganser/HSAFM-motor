@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 venv_dir="${VENV_DIR:-"$repo_root/.venv"}"
 
 if ! command -v python3 >/dev/null 2>&1; then
@@ -14,5 +14,5 @@ python3 -m venv --system-site-packages "$venv_dir"
 "$venv_dir/bin/python" -m pip install -r "$repo_root/requirements.txt"
 
 echo "Virtual environment ready at: $venv_dir"
-echo "Next: run $repo_root/scripts/run_motor_control.sh"
+echo "Next: run $repo_root/run_motor_control.sh"
 echo "The Digilent DAQ HAT library and RPi.GPIO must also be installed for the system Python."

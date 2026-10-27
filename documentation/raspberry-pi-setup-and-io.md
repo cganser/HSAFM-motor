@@ -69,7 +69,7 @@ daqhats_list_boards
 
 The software in this repository searches for one MCC118 and one MCC152 by board type and selects the first matching board. It initializes both HATs when the application starts. Although the main purchase list describes the MCC152 as conditional on force-curve use, the current source still requires the MCC152 to be present to launch.
 
-The application also imports `RPi.GPIO`, `rpi_hardware_pwm`, `PyQt5`, `numpy`, and `matplotlib`. Run `./scripts/setup_venv.sh` from the repository to create `.venv` and install the packages from `requirements.txt`, then launch with `./scripts/run_motor_control.sh`. The launcher uses the `.venv` interpreter regardless of the source file's legacy shebang path.
+The application also imports `RPi.GPIO`, `rpi_hardware_pwm`, `PyQt5`, `numpy`, and `matplotlib`. Run `./setup_venv.sh` from the repository to create `.venv` and install the packages from `requirements.txt`, then launch with `./run_motor_control.sh`. The launcher uses the `.venv` interpreter regardless of the source file's legacy shebang path.
 
 For board-specific capabilities and electrical limits, see the official [MCC DAQ HAT hardware overview](https://files.digilent.com/manuals/DAQ-HAT/overview.html) and [MCC152 product page](https://digilent.com/shop/mcc-152-voltage-output-and-dio-daq-hat-for-raspberry-pi/).
 
