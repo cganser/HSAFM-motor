@@ -52,6 +52,14 @@ These steps are for a fresh Raspberry Pi OS installation. They install the proje
 
    The launcher automatically uses `~/.venv` and sets the repository as the working directory so `settings.dat` is found. The Raspberry Pi 5 [hardware PWM overlay](#raspberry-pi-5-hardware-pwm) must be configured and the Pi rebooted before controlling the motor.
 
+   To create a desktop shortcut from the repository folder, run:
+
+   ```bash
+   ./create_desktop_launcher.sh
+   ```
+
+   The script writes `~/Desktop/HSAFM-Motor.desktop` using the repository's actual path. If the desktop asks, right-click the new shortcut and choose **Allow Launching** or **Trust and Launch**.
+
    The Qt5 SVG bindings are supplied by the OS package `python3-pyqt5.qtsvg`; the project uses the OS PyQt5 modules so they match Raspberry Pi OS's Qt libraries. `PyQt5` is therefore intentionally not installed by pip from `requirements.txt`.
 
 If you already cloned either repository, skip its `git clone` command and `cd` into the existing directory. To update the HSAFM application later, run `cd ~/HSAFM-motor && git pull`; rerun `./setup_venv.sh` if its Python requirements change.
