@@ -116,7 +116,7 @@ The diagram shows AO 0 connected to the z-modulation input and the AI 4 force-di
 
 The Advanced tab defaults the case fan control to MCC152 DIO7. GPIO fan options are GPIO22, GPIO23. These are on/off control signals, not PWM signals. The fan will always run at maximum speed.
 
-The source does not assign a Raspberry Pi GPIO to the Cherry MX style case switch. Its GPIO pin assignment is not specified in the source code or assembly instructions.
+The Cherry MX case switch is an external power button, not a GPIO input. Connect it as a normally-open momentary switch across the Raspberry Pi 5's J2 power-button pads. Briefly closing J2 invokes the same behavior as the onboard power button: on Raspberry Pi Desktop it opens the shutdown/reboot/logout prompt; pressing again initiates shutdown. See Raspberry Pi's [power button instructions](https://www.raspberrypi.com/documentation/hardware/raspberrypi/power.html#power-button).
 
 ### D-sub connector positions
 
